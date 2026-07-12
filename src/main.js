@@ -32,6 +32,12 @@ const characterPreview = document.querySelector('#character-preview');
 const characterNameEl = document.querySelector('#character-name');
 const viewLabel = document.querySelector('#view-label');
 const nameInput = document.querySelector('#name-input');
+const healthFill = document.querySelector('#health-fill');
+const healthText = document.querySelector('#health-text');
+const crystalCount = document.querySelector('#crystal-count');
+const monsterCount = document.querySelector('#monster-count');
+const damageFlash = document.querySelector('#damage-flash');
+const crosshair = document.querySelector('#crosshair');
 
 const CHARACTER_COLORS = {
   skin: ['#f2c7a5', '#d9a077', '#b87550', '#75472f'],
@@ -218,7 +224,7 @@ scene.add(selection);
 const player = {
   position: new THREE.Vector3(0.5, terrainHeight(0, 0) + 1.01, 0.5),
   velocity: new THREE.Vector3(), yaw: 0, pitch: 0, radius: .3, height: 1.78,
-  grounded: false, placed: 0
+  grounded: false, placed: 0, health: 100, crystals: 0, invulnerable: 0
 };
 const keys = new Set();
 let selectedIndex = 0;
@@ -432,14 +438,188 @@ function toggleView() {
 function respawn() {
   player.position.set(.5, terrainHeight(0, 0) + 1.01, .5);
   player.velocity.set(0, 0, 0);
+  player.health = 100;
+  updateSurvivalHUD();
 }
 
 const raycaster = new THREE.Raycaster();
 raycaster.far = REACH;
+const monsterRoot = new THREE.Group();
+const dropRoot = new THREE.Group();
+scene.add(monsterRoot, dropRoot);
+const monsters = [];
+const drops = [];
+let activeMonster = null;
+let monsterSerial = 0;
+
+const MONSTER_TYPES = {
+  slime: { name: '苔原史莱姆', health: 50, speed: 1.15, damage: 9, color: '#63ba66', height: 1.25 },
+  shadow: { name: '暗影兽', health: 70, speed: 1.75, damage: 13, color: '#654890', height: 1.35 },
+  golem: { name: '石像守卫', health: 130, speed: .72, damage: 20, color: '#747d83', height: 2.15 },
+  fire: { name: '火焰精灵', health: 45, speed: 1.5, damage: 11, color: '#ed6e32', height: 1.65, flying: true }
+};
+
+function modelBox(group, size, position, material, rotation = null) {
+  const mesh = new THREE.Mesh(new THREE.BoxGeometry(...size), material);
+  mesh.position.set(...position); mesh.castShadow = true; mesh.receiveShadow = true;
+  if (rotation) mesh.rotation.set(...rotation);
+  group.add(mesh); return mesh;
+}
+
+function buildMonsterModel(type) {
+  const config = MONSTER_TYPES[type];
+  const group = new THREE.Group();
+  const main = new THREE.MeshStandardMaterial({ color: config.color, roughness: .78, emissive: type === 'fire' ? '#7d1d08' : '#000000', emissiveIntensity: type === 'fire' ? .8 : 0 });
+  const dark = new THREE.MeshStandardMaterial({ color: type === 'golem' ? '#42484c' : '#202433', roughness: .85 });
+  const eye = new THREE.MeshStandardMaterial({ color: type === 'shadow' ? '#dc68ff' : type === 'fire' ? '#ffe171' : '#172331', emissive: type === 'shadow' ? '#8420bb' : '#000000', emissiveIntensity: 1.2 });
+
+  if (type === 'slime') {
+    modelBox(group, [.86, .58, .78], [0, .31, 0], main);
+    modelBox(group, [.16, .16, .08], [-.2, .38, -.42], eye);
+    modelBox(group, [.16, .16, .08], [.2, .38, -.42], eye);
+  } else if (type === 'shadow') {
+    modelBox(group, [.92, .58, .58], [0, .6, 0], main);
+    modelBox(group, [.5, .44, .48], [0, 1.0, -.08], main);
+    for (const x of [-.33, .33]) for (const z of [-.18, .2]) modelBox(group, [.16, .62, .16], [x, .31, z], dark, [z * .8, 0, 0]);
+    modelBox(group, [.12, .12, .07], [-.13, 1.07, -.34], eye);
+    modelBox(group, [.12, .12, .07], [.13, 1.07, -.34], eye);
+  } else if (type === 'golem') {
+    modelBox(group, [.86, .86, .55], [0, 1.05, 0], main);
+    modelBox(group, [.64, .55, .58], [0, 1.77, -.02], main);
+    modelBox(group, [.28, 1.05, .32], [-.6, 1.0, 0], dark);
+    modelBox(group, [.28, 1.05, .32], [.6, 1.0, 0], dark);
+    modelBox(group, [.3, .72, .34], [-.24, .36, 0], dark);
+    modelBox(group, [.3, .72, .34], [.24, .36, 0], dark);
+    modelBox(group, [.13, .1, .06], [-.14, 1.82, -.32], eye);
+    modelBox(group, [.13, .1, .06], [.14, 1.82, -.32], eye);
+  } else {
+    const core = new THREE.Mesh(new THREE.OctahedronGeometry(.48, 0), main);
+    core.position.y = .82; core.castShadow = true; group.add(core);
+    modelBox(group, [.16, .52, .16], [-.44, .83, 0], main, [0, 0, -.6]);
+    modelBox(group, [.16, .52, .16], [.44, .83, 0], main, [0, 0, .6]);
+    modelBox(group, [.1, .1, .08], [-.14, .88, -.43], eye);
+    modelBox(group, [.1, .1, .08], [.14, .88, -.43], eye);
+  }
+  return group;
+}
+
+function spawnMonster(type, seed = monsterSerial++) {
+  const config = MONSTER_TYPES[type];
+  const group = buildMonsterModel(type);
+  let x = 8, z = 8;
+  for (let attempt = 0; attempt < 18; attempt++) {
+    const angle = hash2(seed * 23 + attempt, seed * 41) * Math.PI * 2;
+    const radius = 7 + hash2(seed * 59, attempt * 17) * 8;
+    x = Math.round(Math.cos(angle) * radius); z = Math.round(Math.sin(angle) * radius);
+    if (terrainHeight(x, z) > SEA_LEVEL) break;
+  }
+  group.position.set(x + .5, terrainHeight(x, z) + 1, z + .5);
+  const bar = new THREE.Group(); bar.position.y = config.height + .28;
+  const barBack = modelBox(bar, [.72, .075, .035], [0, 0, 0], new THREE.MeshBasicMaterial({ color: '#321f29' }));
+  barBack.castShadow = false;
+  const barFill = modelBox(bar, [.68, .045, .045], [0, 0, -.025], new THREE.MeshBasicMaterial({ color: '#69dd73' }));
+  barFill.castShadow = false; group.add(bar);
+  const monster = { id: monsterSerial, type, config, group, bar, barFill, health: config.health, maxHealth: config.health, cooldown: 0, phase: hash2(seed, 99) * Math.PI * 2, hitFlash: 0 };
+  group.traverse(object => { if (object.isMesh) object.userData.monster = monster; });
+  monsterRoot.add(group); monsters.push(monster); updateSurvivalHUD();
+  return monster;
+}
+
+function spawnInitialMonsters() {
+  monsters.splice(0).forEach(monster => monsterRoot.remove(monster.group));
+  drops.splice(0).forEach(drop => dropRoot.remove(drop.mesh));
+  ['slime', 'slime', 'shadow', 'shadow', 'golem', 'golem', 'fire', 'fire', 'slime', 'shadow'].forEach((type, index) => spawnMonster(type, index + 1));
+}
+
+function dropCrystal(position, amount) {
+  const mesh = new THREE.Mesh(new THREE.OctahedronGeometry(.2, 0), new THREE.MeshStandardMaterial({ color: '#6ce5ef', emissive: '#248a9b', emissiveIntensity: 1.4, roughness: .25 }));
+  mesh.position.copy(position).add(new THREE.Vector3(0, .45, 0)); mesh.castShadow = true;
+  dropRoot.add(mesh); drops.push({ mesh, amount, phase: Math.random() * 6 });
+}
+
+function defeatMonster(monster) {
+  const index = monsters.indexOf(monster);
+  if (index < 0) return;
+  monsters.splice(index, 1); monsterRoot.remove(monster.group);
+  dropCrystal(monster.group.position, monster.type === 'golem' ? 4 : 2);
+  activeMonster = null; showToast(`${monster.config.name}被击败 · 掉落晶体`);
+  updateSurvivalHUD();
+  setTimeout(() => { if (started) spawnMonster(monster.type); }, 9000);
+}
+
+function attackMonster(monster) {
+  monster.health -= 25;
+  monster.hitFlash = .16;
+  const ratio = Math.max(0, monster.health / monster.maxHealth);
+  monster.barFill.scale.x = ratio;
+  monster.barFill.position.x = -(1 - ratio) * .34;
+  if (monster.health <= 0) defeatMonster(monster);
+}
+
+function damagePlayer(amount, source) {
+  if (player.invulnerable > 0) return;
+  player.health = Math.max(0, player.health - amount); player.invulnerable = .65;
+  damageFlash.classList.add('hit'); setTimeout(() => damageFlash.classList.remove('hit'), 130);
+  const push = player.position.clone().sub(source).setY(.25).normalize().multiplyScalar(3.5);
+  player.velocity.add(push); updateSurvivalHUD();
+  if (player.health <= 0) { showToast('你被怪物击倒，已返回出生点'); respawn(); }
+}
+
+function updateSurvivalHUD() {
+  healthFill.style.width = `${player.health}%`; healthText.textContent = Math.ceil(player.health);
+  crystalCount.textContent = player.crystals; monsterCount.textContent = monsters.length;
+}
+
+function updateMonsters(delta, active) {
+  player.invulnerable = Math.max(0, player.invulnerable - delta);
+  const nightBoost = Math.sin(dayPhase * Math.PI * 2) < .15 ? 1.28 : 1;
+  const now = performance.now() * .001;
+  for (const monster of monsters) {
+    monster.cooldown = Math.max(0, monster.cooldown - delta);
+    monster.hitFlash = Math.max(0, monster.hitFlash - delta);
+    monster.group.scale.setScalar(monster.hitFlash > 0 ? 1.12 : 1);
+    const flat = player.position.clone().sub(monster.group.position); flat.y = 0;
+    const distance = flat.length();
+    let direction = new THREE.Vector3(Math.sin(now * .35 + monster.phase), 0, Math.cos(now * .35 + monster.phase));
+    if (distance < 8 * nightBoost) direction.copy(flat).normalize();
+    if (active && distance < 12 && distance > .9) {
+      const step = monster.config.speed * nightBoost * delta;
+      const candidate = monster.group.position.clone().addScaledVector(direction, step);
+      candidate.x = THREE.MathUtils.clamp(candidate.x, -HALF + 1, HALF - 1);
+      candidate.z = THREE.MathUtils.clamp(candidate.z, -HALF + 1, HALF - 1);
+      const ground = terrainHeight(Math.floor(candidate.x), Math.floor(candidate.z));
+      if (ground > SEA_LEVEL || monster.config.flying) {
+        monster.group.position.x = candidate.x; monster.group.position.z = candidate.z;
+      }
+    }
+    const groundY = terrainHeight(Math.floor(monster.group.position.x), Math.floor(monster.group.position.z)) + 1;
+    const bob = monster.type === 'slime' ? Math.abs(Math.sin(now * 3.5 + monster.phase)) * .16 : monster.type === 'fire' ? 1.1 + Math.sin(now * 3 + monster.phase) * .2 : 0;
+    monster.group.position.y += (groundY + bob - monster.group.position.y) * Math.min(1, delta * 8);
+    if (direction.lengthSq()) monster.group.rotation.y = Math.atan2(-direction.x, -direction.z);
+    if (active && distance < 1.15 && monster.cooldown <= 0) {
+      damagePlayer(monster.config.damage, monster.group.position); monster.cooldown = 1.15;
+    }
+  }
+  for (let i = drops.length - 1; i >= 0; i--) {
+    const drop = drops[i]; drop.mesh.rotation.y += delta * 2.5;
+    drop.mesh.position.y += Math.sin(now * 3 + drop.phase) * delta * .08;
+    if (drop.mesh.position.distanceTo(player.position.clone().add(new THREE.Vector3(0, .7, 0))) < 1.15) {
+      player.crystals += drop.amount; dropRoot.remove(drop.mesh); drops.splice(i, 1);
+      showToast(`获得 ${drop.amount} 枚水晶`); updateSurvivalHUD(); autoSaveSoon();
+    }
+  }
+}
+
 function updateTarget() {
   raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
   const targetMeshes = meshes.filter(mesh => mesh.userData.targetable);
   const hit = raycaster.intersectObjects(targetMeshes, false)[0];
+  const monsterHit = raycaster.intersectObjects(monsterRoot.children, true).find(item => item.object.userData.monster);
+  if (monsterHit && monsterHit.distance <= REACH && (!hit || monsterHit.distance < hit.distance)) {
+    activeMonster = monsterHit.object.userData.monster; activeHit = null;
+    selection.visible = false; crosshair.classList.add('danger'); return;
+  }
+  activeMonster = null; crosshair.classList.remove('danger');
   if (!hit || hit.distance > REACH) {
     activeHit = null;
     selection.visible = false;
@@ -458,7 +638,9 @@ function blockIntersectsPlayer(x, y, z) {
 }
 
 function editBlock(button) {
-  if (!activeHit || document.pointerLockElement !== renderer.domElement) return;
+  if (document.pointerLockElement !== renderer.domElement) return;
+  if (button === 0 && activeMonster) return attackMonster(activeMonster);
+  if (!activeHit) return;
   const [x, y, z] = activeHit.position;
   if (button === 0) {
     if (y <= 0) return showToast('最底层无法破坏');
@@ -499,7 +681,7 @@ function saveWorld(showMessage = true) {
   const data = {
     changes: [...editableChanges], placed: player.placed,
     position: player.position.toArray(), yaw: player.yaw, pitch: player.pitch,
-    selectedIndex, dayPhase, thirdPerson, character
+    selectedIndex, dayPhase, thirdPerson, character, health: player.health, crystals: player.crystals
   };
   localStorage.setItem(SAVE_KEY, JSON.stringify(data));
   if (showMessage) showToast('世界已保存');
@@ -516,6 +698,7 @@ function loadWorld() {
     player.yaw = data.yaw || 0; player.pitch = data.pitch || 0;
     selectedIndex = data.selectedIndex || 0; dayPhase = data.dayPhase ?? dayPhase;
     thirdPerson = Boolean(data.thirdPerson);
+    player.health = data.health ?? 100; player.crystals = data.crystals || 0;
     if (data.character) Object.assign(character, data.character);
   } catch { localStorage.removeItem(SAVE_KEY); }
 }
@@ -584,7 +767,7 @@ document.querySelector('#day-button').addEventListener('click', () => {
 document.querySelector('#reset-button').addEventListener('click', () => {
   editableChanges.clear(); player.placed = 0;
   player.yaw = player.pitch = 0; dayPhase = .22; manualTime = false;
-  respawn(); generateWorld(); rebuildMeshes(); countEl.textContent = '0'; begin();
+  player.crystals = 0; respawn(); generateWorld(); rebuildMeshes(); spawnInitialMonsters(); countEl.textContent = '0'; begin();
 });
 
 renderer.domElement.addEventListener('click', () => {
@@ -620,11 +803,13 @@ window.addEventListener('resize', () => {
 loadWorld();
 generateWorld();
 rebuildMeshes();
+spawnInitialMonsters();
 buildHotbar();
 setupCharacterEditor();
 nameInput.value = character.name;
 countEl.textContent = player.placed;
 viewLabel.textContent = thirdPerson ? '第三人称' : '第一人称';
+updateSurvivalHUD();
 
 const clock = new THREE.Clock();
 function animate() {
@@ -632,6 +817,7 @@ function animate() {
   const delta = Math.min(clock.getDelta(), .05);
   if (document.pointerLockElement === renderer.domElement) movePlayer(delta);
   updateAvatar(delta); updateCamera();
+  updateMonsters(delta, document.pointerLockElement === renderer.domElement);
   updateTarget(); updateSky(delta);
   coordsEl.textContent = `${player.position.x.toFixed(1)} / ${player.position.y.toFixed(1)} / ${player.position.z.toFixed(1)}`;
   renderer.render(scene, camera);
