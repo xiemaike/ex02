@@ -45,7 +45,8 @@ const CHARACTER_COLORS = {
   hair: ['#4a3028', '#1f2732', '#9a6235', '#d1b36a', '#713f58']
 };
 const CHARACTER_PRESETS = {
-  furina: { label: '水之歌者', note: '芙宁娜风格', defaultName: '芙露娜', skin: '#f2c7a5', shirt: '#203f74', hair: '#e8edf4', trousers: '#16294f', accent: '#71d8e5', eyes: '#43bfe0', hairStyle: 'long', accessory: 'hat' },
+  mint: { label: '薄荷通讯者', note: '高精度模型', defaultName: '青铃', skin: '#f2c7ae', shirt: '#f4f3ed', hair: '#92d6bd', trousers: '#293244', accent: '#9b3035', eyes: '#c34f80', hairStyle: 'twin', accessory: 'none', model: 'mint' },
+  furina: { label: '水之歌者', note: '芙宁娜风格', defaultName: '芙露娜', skin: '#f2c7a5', shirt: '#203f74', hair: '#e8edf4', trousers: '#16294f', accent: '#71d8e5', eyes: '#43bfe0', hairStyle: 'long', accessory: 'hat', model: 'generic' },
   sakura: { label: '樱花魔法使', note: '原创动漫', defaultName: '小樱', skin: '#f0c0a2', shirt: '#c86b9d', hair: '#efa5c4', trousers: '#60466f', accent: '#ffe5f1', eyes: '#8d4bb0', hairStyle: 'twin', accessory: 'ribbon' },
   knight: { label: '金焰骑士', note: '原创动漫', defaultName: '艾琳', skin: '#e9b88f', shirt: '#e7e4da', hair: '#e3b95e', trousers: '#683d3b', accent: '#d84e3b', eyes: '#5c91c7', hairStyle: 'long', accessory: 'crown' },
   miko: { label: '月夜巫女', note: '原创动漫', defaultName: '月璃', skin: '#f1c8ae', shirt: '#f3eee5', hair: '#202737', trousers: '#9d3341', accent: '#d94a5b', eyes: '#bc425c', hairStyle: 'long', accessory: 'ribbon' },
@@ -233,12 +234,13 @@ let started = false;
 let dayPhase = .22;
 let manualTime = false;
 let thirdPerson = false;
+let frontView = false;
 let editingCharacter = false;
 let characterFromStart = false;
 const character = {
   name: '探险家', skin: CHARACTER_COLORS.skin[1], shirt: CHARACTER_COLORS.shirt[0],
   hair: CHARACTER_COLORS.hair[0], trousers: '#34455d', accent: '#f5d06f', eyes: '#243344',
-  hairStyle: 'short', accessory: 'none', preset: 'custom', created: false
+  hairStyle: 'short', accessory: 'none', preset: 'custom', model: 'generic', created: false
 };
 
 const characterMaterials = {
@@ -257,6 +259,98 @@ function avatarBox(size, position, material, parent = avatar) {
   mesh.position.set(...position); mesh.castShadow = true; mesh.receiveShadow = true;
   parent.add(mesh); return mesh;
 }
+
+function createMintFaceTexture() {
+  const canvas = document.createElement('canvas'); canvas.width = canvas.height = 32;
+  const ctx = canvas.getContext('2d'); ctx.imageSmoothingEnabled = false;
+  ctx.fillStyle = '#f2c7ae'; ctx.fillRect(0, 0, 32, 32);
+  ctx.fillStyle = '#392634'; ctx.fillRect(4, 12, 10, 2); ctx.fillRect(18, 12, 10, 2);
+  ctx.fillStyle = '#fff7f7'; ctx.fillRect(5, 14, 8, 7); ctx.fillRect(19, 14, 8, 7);
+  ctx.fillStyle = '#c34f80'; ctx.fillRect(7, 14, 5, 7); ctx.fillRect(20, 14, 5, 7);
+  ctx.fillStyle = '#7c294f'; ctx.fillRect(8, 17, 4, 4); ctx.fillRect(20, 17, 4, 4);
+  ctx.fillStyle = '#ffffff'; ctx.fillRect(8, 14, 2, 2); ctx.fillRect(21, 14, 2, 2);
+  ctx.fillStyle = '#d99791'; ctx.fillRect(15, 21, 2, 1);
+  ctx.fillStyle = '#7d444d'; ctx.fillRect(14, 25, 5, 1);
+  const texture = new THREE.CanvasTexture(canvas); texture.magFilter = THREE.NearestFilter;
+  texture.minFilter = THREE.NearestFilter; texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
+const mintMaterials = {
+  skin: new THREE.MeshLambertMaterial({ color: '#f2c7ae' }),
+  hair: new THREE.MeshLambertMaterial({ color: '#92d6bd' }),
+  hairLight: new THREE.MeshLambertMaterial({ color: '#b9ebd8' }),
+  hairDark: new THREE.MeshLambertMaterial({ color: '#589a86' }),
+  shirt: new THREE.MeshLambertMaterial({ color: '#f4f3ed' }),
+  sweater: new THREE.MeshLambertMaterial({ color: '#8a8e98' }),
+  trousers: new THREE.MeshLambertMaterial({ color: '#293244' }),
+  shoe: new THREE.MeshLambertMaterial({ color: '#e8e6dc' }),
+  ribbon: new THREE.MeshLambertMaterial({ color: '#9b3035' }),
+  phone: new THREE.MeshStandardMaterial({ color: '#70757d', metalness: .65, roughness: .25 }),
+  phoneDark: new THREE.MeshStandardMaterial({ color: '#171b22', metalness: .35, roughness: .3 }),
+  face: new THREE.MeshBasicMaterial({ map: createMintFaceTexture() })
+};
+const mintAvatar = new THREE.Group(); mintAvatar.scale.setScalar(.88); scene.add(mintAvatar);
+
+function mintBox(size, position, material, parent = mintAvatar, rotation = null) {
+  const mesh = avatarBox(size, position, material, parent);
+  if (rotation) mesh.rotation.set(...rotation);
+  return mesh;
+}
+
+function mintLimb(position, size, material) {
+  const pivot = new THREE.Group(); pivot.position.set(...position); mintAvatar.add(pivot);
+  mintBox(size, [0, -size[1] / 2, 0], material, pivot); return pivot;
+}
+
+const mintParts = {
+  leftLeg: mintLimb([-.17, .8, 0], [.29, .74, .32], mintMaterials.trousers),
+  rightLeg: mintLimb([.17, .8, 0], [.29, .74, .32], mintMaterials.trousers),
+  leftArm: mintLimb([-.48, 1.49, 0], [.2, .7, .23], mintMaterials.skin),
+  braids: []
+};
+mintBox([.32, .2, .43], [-.17, .1, -.055], mintMaterials.shoe);
+mintBox([.32, .2, .43], [.17, .1, -.055], mintMaterials.shoe);
+mintBox([.72, .68, .37], [0, 1.15, 0], mintMaterials.shirt);
+mintBox([.78, .17, .42], [0, 1.43, .015], mintMaterials.sweater);
+mintBox([.18, .64, .14], [-.14, 1.12, -.22], mintMaterials.sweater, mintAvatar, [0, 0, -.13]);
+mintBox([.18, .64, .14], [.14, 1.12, -.22], mintMaterials.sweater, mintAvatar, [0, 0, .13]);
+mintBox([.28, .19, .16], [0, .86, -.25], mintMaterials.sweater, mintAvatar, [0, 0, .75]);
+
+mintBox([.62, .58, .6], [0, 1.8, 0], mintMaterials.skin);
+const face = new THREE.Mesh(new THREE.PlaneGeometry(.59, .55), mintMaterials.face);
+face.position.set(0, 1.8, -.306); face.rotation.y = Math.PI; mintAvatar.add(face);
+mintBox([.68, .15, .65], [0, 2.1, .01], mintMaterials.hair);
+mintBox([.13, .53, .62], [-.325, 1.86, .02], mintMaterials.hairDark);
+mintBox([.13, .53, .62], [.325, 1.86, .02], mintMaterials.hair);
+mintBox([.62, .56, .14], [0, 1.83, .305], mintMaterials.hairDark);
+const bangData = [
+  [-.25, 1.97, .29, -.18], [-.13, 1.93, .36, -.09], [0, 1.9, .4, .03],
+  [.13, 1.94, .34, .1], [.25, 1.98, .27, .18]
+];
+bangData.forEach(([x, y, h, rz], index) => mintBox([.14, h, .13], [x, y, -.34], index % 2 ? mintMaterials.hairLight : mintMaterials.hair, mintAvatar, [0, 0, rz]));
+mintBox([.18, .13, .18], [.05, 2.23, .02], mintMaterials.hairLight, mintAvatar, [0, 0, -.25]);
+
+for (const side of [-1, 1]) {
+  const braid = new THREE.Group(); mintAvatar.add(braid); mintParts.braids.push(braid);
+  for (let i = 0; i < 7; i++) {
+    const y = 1.58 - i * .18;
+    const x = side * (.43 + Math.sin(i * .9) * .035);
+    mintBox([.2 - i * .008, .24, .2 - i * .008], [x, y, .04], i % 2 ? mintMaterials.hairLight : mintMaterials.hair, braid, [0, 0, side * (i % 2 ? .17 : -.12)]);
+  }
+  mintBox([.25, .11, .22], [side * .43, .44, .04], mintMaterials.ribbon, braid);
+  mintBox([.13, .19, .12], [side * .52, .42, .04], mintMaterials.ribbon, braid, [0, 0, side * .55]);
+  mintBox([.13, .19, .12], [side * .34, .42, .04], mintMaterials.ribbon, braid, [0, 0, -side * .55]);
+  mintBox([.16, .22, .16], [side * .43, .28, .04], mintMaterials.hairLight, braid);
+}
+
+mintBox([.21, .55, .23], [.47, 1.23, -.01], mintMaterials.skin);
+mintBox([.19, .58, .21], [.43, 1.62, -.12], mintMaterials.skin, mintAvatar, [0, 0, .08]);
+mintBox([.2, .18, .22], [.39, 1.91, -.12], mintMaterials.skin);
+mintBox([.14, .43, .09], [.53, 1.88, -.14], mintMaterials.phone, mintAvatar, [0, 0, .12]);
+mintBox([.075, .075, .025], [.52, 2.0, -.19], mintMaterials.phoneDark);
+mintBox([.075, .075, .025], [.54, 1.88, -.19], mintMaterials.phoneDark);
+mintBox([.3, .15, .22], [-.48, 1.43, 0], mintMaterials.sweater);
 
 const avatarParts = {
   leftLeg: avatarBox([.26, .72, .28], [-.15, .36, 0], characterMaterials.trousers),
@@ -327,7 +421,8 @@ function applyCharacterAppearance() {
 function applyPreset(key) {
   const preset = CHARACTER_PRESETS[key];
   if (!preset) return;
-  Object.assign(character, preset, { preset: key, name: preset.defaultName });
+  Object.assign(character, preset, { preset: key, name: preset.defaultName, model: preset.model || 'generic' });
+  if (preset.model === 'mint') { thirdPerson = true; frontView = true; viewLabel.textContent = '正面展示'; }
   nameInput.value = character.name;
   applyCharacterAppearance();
 }
@@ -406,7 +501,11 @@ function movePlayer(delta) {
 function updateAvatar(delta) {
   avatar.position.copy(player.position);
   avatar.rotation.y = player.yaw;
-  avatar.visible = thirdPerson;
+  mintAvatar.position.copy(player.position);
+  mintAvatar.rotation.y = player.yaw;
+  const mintSelected = character.model === 'mint';
+  avatar.visible = thirdPerson && !mintSelected;
+  mintAvatar.visible = thirdPerson && mintSelected;
   const moving = Math.hypot(player.velocity.x, player.velocity.z) > .25 && player.grounded;
   const swing = moving ? Math.sin(performance.now() * .012) * .55 : 0;
   const easing = Math.min(1, delta * 14);
@@ -414,6 +513,13 @@ function updateAvatar(delta) {
   avatarParts.rightArm.rotation.x += (-swing - avatarParts.rightArm.rotation.x) * easing;
   avatarParts.leftLeg.rotation.x += (-swing - avatarParts.leftLeg.rotation.x) * easing;
   avatarParts.rightLeg.rotation.x += (swing - avatarParts.rightLeg.rotation.x) * easing;
+  mintParts.leftLeg.rotation.x += (-swing - mintParts.leftLeg.rotation.x) * easing;
+  mintParts.rightLeg.rotation.x += (swing - mintParts.rightLeg.rotation.x) * easing;
+  mintParts.leftArm.rotation.x += (swing * .7 - mintParts.leftArm.rotation.x) * easing;
+  mintParts.braids.forEach((braid, index) => {
+    const target = moving ? Math.sin(performance.now() * .007 + index * Math.PI) * .05 : 0;
+    braid.rotation.x += (target - braid.rotation.x) * easing;
+  });
 }
 
 function updateCamera() {
@@ -423,15 +529,17 @@ function updateCamera() {
     return;
   }
   const target = player.position.clone().add(new THREE.Vector3(0, 1.22, 0));
-  const offset = new THREE.Vector3(0, 1.55 + player.pitch * .75, 4.3).applyAxisAngle(new THREE.Vector3(0, 1, 0), player.yaw);
+  const offset = new THREE.Vector3(0, 1.55 + player.pitch * .75, frontView ? -4.3 : 4.3).applyAxisAngle(new THREE.Vector3(0, 1, 0), player.yaw);
   camera.position.copy(target).add(offset);
   camera.lookAt(target);
 }
 
 function toggleView() {
-  thirdPerson = !thirdPerson;
-  viewLabel.textContent = thirdPerson ? '第三人称' : '第一人称';
-  showToast(thirdPerson ? '已切换为第三人称' : '已切换为第一人称');
+  if (!thirdPerson) { thirdPerson = true; frontView = false; }
+  else if (!frontView) frontView = true;
+  else { thirdPerson = false; frontView = false; }
+  const label = !thirdPerson ? '第一人称' : frontView ? '正面展示' : '第三人称';
+  viewLabel.textContent = label; showToast(`已切换为${label}`);
   saveWorld(false);
 }
 
@@ -681,7 +789,7 @@ function saveWorld(showMessage = true) {
   const data = {
     changes: [...editableChanges], placed: player.placed,
     position: player.position.toArray(), yaw: player.yaw, pitch: player.pitch,
-    selectedIndex, dayPhase, thirdPerson, character, health: player.health, crystals: player.crystals
+    selectedIndex, dayPhase, thirdPerson, frontView, character, health: player.health, crystals: player.crystals
   };
   localStorage.setItem(SAVE_KEY, JSON.stringify(data));
   if (showMessage) showToast('世界已保存');
@@ -698,6 +806,7 @@ function loadWorld() {
     player.yaw = data.yaw || 0; player.pitch = data.pitch || 0;
     selectedIndex = data.selectedIndex || 0; dayPhase = data.dayPhase ?? dayPhase;
     thirdPerson = Boolean(data.thirdPerson);
+    frontView = Boolean(data.frontView);
     player.health = data.health ?? 100; player.crystals = data.crystals || 0;
     if (data.character) Object.assign(character, data.character);
   } catch { localStorage.removeItem(SAVE_KEY); }
@@ -808,7 +917,7 @@ buildHotbar();
 setupCharacterEditor();
 nameInput.value = character.name;
 countEl.textContent = player.placed;
-viewLabel.textContent = thirdPerson ? '第三人称' : '第一人称';
+viewLabel.textContent = !thirdPerson ? '第一人称' : frontView ? '正面展示' : '第三人称';
 updateSurvivalHUD();
 
 const clock = new THREE.Clock();
