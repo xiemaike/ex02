@@ -1,0 +1,87 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=Noto+Sans+SC:wght@400;600;700;900&display=swap');
+
+:root {
+  font-family: 'Outfit', 'Noto Sans SC', system-ui, sans-serif;
+  color: #f7fbff;
+  background: #101c2c;
+  font-synthesis: none;
+}
+
+* { box-sizing: border-box; }
+html, body, #game { width: 100%; height: 100%; margin: 0; overflow: hidden; }
+body { user-select: none; }
+canvas { display: block; width: 100%; height: 100%; }
+button { font: inherit; }
+
+.hidden { display: none !important; }
+.screen {
+  position: fixed; inset: 0; z-index: 20; display: grid; place-items: center;
+  background: linear-gradient(110deg, rgba(7, 17, 30, .78), rgba(7, 17, 30, .2));
+}
+
+#start-screen::before {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(circle at 70% 25%, rgba(255, 211, 108, .2), transparent 25%),
+              linear-gradient(180deg, transparent 70%, rgba(5, 13, 23, .55));
+}
+
+.brand-card { width: min(560px, calc(100% - 40px)); margin-right: min(40vw, 520px); position: relative; }
+.eyebrow { margin: 0 0 12px; color: #ffd36c; text-transform: uppercase; letter-spacing: .22em; font-size: 12px; font-weight: 800; }
+h1 { margin: 0; font-size: clamp(54px, 7vw, 94px); line-height: .88; letter-spacing: -.055em; text-shadow: 0 8px 30px rgba(0,0,0,.28); }
+h1 span { display: block; color: #ffd36c; }
+.intro { max-width: 460px; color: rgba(244,249,255,.76); line-height: 1.8; font-size: 16px; margin: 28px 0; }
+
+.primary, .secondary {
+  border: 0; border-radius: 14px; cursor: pointer; font-weight: 800; transition: transform .2s, filter .2s;
+}
+.primary { padding: 15px 21px; background: #ffd36c; color: #172235; box-shadow: 0 12px 35px rgba(255, 193, 63, .25); }
+.primary span { margin-left: 36px; }
+.primary:hover, .secondary:hover { transform: translateY(-2px); filter: brightness(1.06); }
+.secondary { padding: 13px 18px; color: #fff; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.14); }
+
+.controls-grid { margin-top: 36px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; max-width: 470px; }
+.controls-grid div { display: flex; align-items: center; gap: 9px; color: rgba(255,255,255,.62); font-size: 12px; }
+kbd { min-width: 49px; padding: 7px 8px; text-align: center; border: 1px solid rgba(255,255,255,.2); border-bottom-width: 3px; border-radius: 7px; color: #fff; background: rgba(255,255,255,.08); font-family: inherit; font-weight: 700; }
+.original-note { position: fixed; bottom: 20px; left: 24px; margin: 0; color: rgba(255,255,255,.38); font-size: 11px; letter-spacing: .08em; }
+
+.glass { background: rgba(12, 23, 38, .64); border: 1px solid rgba(255,255,255,.12); box-shadow: 0 12px 40px rgba(0,0,0,.18); backdrop-filter: blur(14px); }
+#hud { position: fixed; inset: 0; z-index: 10; pointer-events: none; }
+.topbar { position: absolute; top: 18px; left: 18px; right: 18px; height: 56px; border-radius: 15px; display: flex; align-items: center; justify-content: space-between; padding: 0 12px 0 17px; }
+.world-name { display: flex; align-items: center; gap: 10px; }
+.world-name i { width: 9px; height: 9px; border-radius: 50%; background: #83e278; box-shadow: 0 0 14px #83e278; }
+.world-name strong { font-size: 14px; }
+.world-name span { font-size: 11px; color: rgba(255,255,255,.44); border-left: 1px solid rgba(255,255,255,.16); padding-left: 10px; }
+.top-actions { display: flex; gap: 7px; pointer-events: auto; }
+.top-actions button { color: #fff; border: 0; background: rgba(255,255,255,.08); border-radius: 10px; padding: 8px 12px; cursor: pointer; font-size: 12px; }
+
+#crosshair { position: absolute; left: 50%; top: 50%; width: 18px; height: 18px; transform: translate(-50%,-50%); filter: drop-shadow(0 1px 2px #000); }
+#crosshair span { position: absolute; background: rgba(255,255,255,.92); border-radius: 2px; }
+#crosshair span:first-child { width: 16px; height: 2px; top: 8px; left: 1px; }
+#crosshair span:last-child { height: 16px; width: 2px; left: 8px; top: 1px; }
+
+.status { position: absolute; left: 18px; bottom: 18px; border-radius: 13px; padding: 10px 13px; display: flex; gap: 8px; align-items: center; font-size: 10px; color: rgba(255,255,255,.42); }
+.status strong { color: #fff; font-size: 11px; }
+.status .divider { width: 1px; height: 19px; margin: 0 6px; background: rgba(255,255,255,.14); }
+.hotbar { position: absolute; left: 50%; bottom: 18px; transform: translateX(-50%); border-radius: 16px; padding: 7px; display: flex; gap: 6px; pointer-events: auto; }
+.slot { position: relative; width: 56px; height: 56px; border-radius: 11px; border: 1px solid transparent; background: rgba(255,255,255,.06); cursor: pointer; color: #fff; transition: .16s; }
+.slot:hover { background: rgba(255,255,255,.12); }
+.slot.active { border-color: #ffd36c; background: rgba(255,211,108,.15); transform: translateY(-4px); }
+.slot .cube { width: 25px; height: 25px; margin: 10px auto 0; border-radius: 4px; box-shadow: inset -5px -5px 0 rgba(0,0,0,.14), inset 3px 3px 0 rgba(255,255,255,.12); }
+.slot small { position: absolute; left: 6px; top: 4px; font-size: 9px; color: rgba(255,255,255,.42); }
+.slot label { position: absolute; left: 4px; right: 4px; bottom: 3px; font-size: 8px; text-align: center; color: rgba(255,255,255,.62); }
+.hint { position: absolute; bottom: 91px; left: 50%; transform: translateX(-50%); color: rgba(255,255,255,.5); font-size: 10px; text-shadow: 0 1px 4px #000; }
+
+#toast { position: absolute; left: 50%; top: 94px; opacity: 0; transform: translate(-50%,-8px); background: #f7fbff; color: #162134; padding: 9px 14px; border-radius: 9px; font-size: 11px; font-weight: 700; transition: .25s; }
+#toast.show { opacity: 1; transform: translate(-50%,0); }
+.pause-card { width: min(390px, calc(100% - 36px)); padding: 35px; border-radius: 22px; text-align: center; }
+.pause-card h2 { margin: 5px 0 25px; font-size: 27px; }
+.pause-card button { width: 100%; margin-top: 9px; }
+
+@media (max-width: 760px) {
+  .brand-card { margin: 0; }
+  .controls-grid { grid-template-columns: repeat(2, 1fr); }
+  .slot { width: 43px; height: 50px; }
+  .slot .cube { width: 21px; height: 21px; margin-top: 9px; }
+  .status, .world-name span { display: none; }
+  .topbar { left: 10px; right: 10px; top: 10px; }
+}
