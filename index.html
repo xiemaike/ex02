@@ -40,6 +40,11 @@
         </div>
       </div>
       <div id="toast">世界已保存</div>
+      <div id="damage-flash"></div>
+      <div class="survival-status glass">
+        <div class="health-line"><span>生命</span><div class="health-track"><i id="health-fill"></i></div><strong id="health-text">100</strong></div>
+        <div class="survival-meta"><span>◆ 晶体 <strong id="crystal-count">0</strong></span><span>♜ 怪物 <strong id="monster-count">0</strong></span></div>
+      </div>
       <div id="crosshair"><span></span><span></span></div>
       <div class="status glass">
         <span>坐标</span><strong id="coords">0 / 0 / 0</strong>
@@ -47,7 +52,7 @@
         <span>已放置</span><strong id="placed-count">0</strong>
       </div>
       <div id="hotbar" class="hotbar glass"></div>
-      <div class="hint">点击画面继续 · 滚轮切换方块</div>
+      <div class="hint">左键攻击/采集 · 滚轮切换方块</div>
     </div>
 
     <section id="pause-screen" class="screen hidden">
