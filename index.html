@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#101c2c" />
+    <meta name="description" content="BlockHaven，一款原创浏览器方块沙盒游戏。" />
+    <title>BlockHaven · 方块岛</title>
+  </head>
+  <body>
+    <div id="game"></div>
+
+    <section id="start-screen" class="screen">
+      <div class="brand-card">
+        <p class="eyebrow">一座会呼吸的方块岛</p>
+        <h1>BLOCK<span>HAVEN</span></h1>
+        <p class="intro">采集、搭建、探索。每一次进入，岛屿都会等你继续完成它。</p>
+        <button id="play-button" class="primary">进入世界 <span>→</span></button>
+        <div class="controls-grid">
+          <div><kbd>WASD</kbd><span>移动</span></div>
+          <div><kbd>空格</kbd><span>跳跃</span></div>
+          <div><kbd>左键</kbd><span>破坏</span></div>
+          <div><kbd>右键</kbd><span>放置</span></div>
+          <div><kbd>1–6</kbd><span>选方块</span></div>
+          <div><kbd>Esc</kbd><span>暂停</span></div>
+        </div>
+      </div>
+      <p class="original-note">原创体素沙盒 · 无需登录 · 自动保存在浏览器</p>
+    </section>
+
+    <div id="hud" class="hidden">
+      <div class="topbar glass">
+        <div class="world-name"><i></i><strong>方块岛</strong><span>生存建造模式</span></div>
+        <div class="top-actions">
+          <button id="day-button" title="切换时间">☀ <span id="time-label">白昼</span></button>
+          <button id="save-button" title="保存进度">◆ 保存</button>
+        </div>
+      </div>
+      <div id="toast">世界已保存</div>
+      <div id="crosshair"><span></span><span></span></div>
+      <div class="status glass">
+        <span>坐标</span><strong id="coords">0 / 0 / 0</strong>
+        <div class="divider"></div>
+        <span>已放置</span><strong id="placed-count">0</strong>
+      </div>
+      <div id="hotbar" class="hotbar glass"></div>
+      <div class="hint">点击画面继续 · 滚轮切换方块</div>
+    </div>
+
+    <section id="pause-screen" class="screen hidden">
+      <div class="pause-card glass">
+        <p class="eyebrow">世界已暂停</p>
+        <h2>方块岛还在等你</h2>
+        <button id="resume-button" class="primary">继续探索</button>
+        <button id="reset-button" class="secondary">生成新世界</button>
+      </div>
+    </section>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
