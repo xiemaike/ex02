@@ -22,6 +22,7 @@
           <div><kbd>左键</kbd><span>破坏</span></div>
           <div><kbd>右键</kbd><span>放置</span></div>
           <div><kbd>1–6</kbd><span>选方块</span></div>
+          <div><kbd>F5</kbd><span>切换视角</span></div>
           <div><kbd>Esc</kbd><span>暂停</span></div>
         </div>
       </div>
@@ -32,6 +33,8 @@
       <div class="topbar glass">
         <div class="world-name"><i></i><strong>方块岛</strong><span>生存建造模式</span></div>
         <div class="top-actions">
+          <button id="view-button" title="切换第一/第三人称">◉ <span id="view-label">第一人称</span></button>
+          <button id="character-button" title="编辑角色">♟ <span id="character-name">探险家</span></button>
           <button id="day-button" title="切换时间">☀ <span id="time-label">白昼</span></button>
           <button id="save-button" title="保存进度">◆ 保存</button>
         </div>
@@ -52,7 +55,44 @@
         <p class="eyebrow">世界已暂停</p>
         <h2>方块岛还在等你</h2>
         <button id="resume-button" class="primary">继续探索</button>
+        <button id="pause-character-button" class="secondary">编辑角色</button>
         <button id="reset-button" class="secondary">生成新世界</button>
+      </div>
+    </section>
+
+    <section id="character-screen" class="screen hidden">
+      <div class="character-builder glass">
+        <div class="character-preview-wrap">
+          <p class="eyebrow">你的方块探险家</p>
+          <div id="character-preview" class="character-preview">
+            <div class="pixel-hair"></div>
+            <div class="pixel-head"><i></i><i></i></div>
+            <div class="pixel-body"></div>
+            <div class="pixel-arm left"></div><div class="pixel-arm right"></div>
+            <div class="pixel-leg left"></div><div class="pixel-leg right"></div>
+          </div>
+          <div class="preview-shadow"></div>
+        </div>
+        <div class="character-options">
+          <p class="eyebrow">创建角色</p>
+          <h2>准备好成为岛上的第一位居民</h2>
+          <label class="field-label" for="name-input">角色昵称</label>
+          <input id="name-input" maxlength="12" value="探险家" autocomplete="off" />
+          <div class="option-row">
+            <span>肤色</span>
+            <div id="skin-options" class="swatches"></div>
+          </div>
+          <div class="option-row">
+            <span>上衣</span>
+            <div id="shirt-options" class="swatches"></div>
+          </div>
+          <div class="option-row">
+            <span>发色</span>
+            <div id="hair-options" class="swatches"></div>
+          </div>
+          <button id="save-character-button" class="primary">保存角色并出发 <span>→</span></button>
+          <button id="cancel-character-button" class="text-button">返回游戏</button>
+        </div>
       </div>
     </section>
 
