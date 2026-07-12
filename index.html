@@ -65,9 +65,12 @@
         <div class="character-preview-wrap">
           <p class="eyebrow">你的方块探险家</p>
           <div id="character-preview" class="character-preview">
+            <div class="pixel-hat"><b></b></div>
             <div class="pixel-hair"></div>
+            <div class="pixel-hair-tail left"></div><div class="pixel-hair-tail right"></div>
             <div class="pixel-head"><i></i><i></i></div>
             <div class="pixel-body"></div>
+            <div class="pixel-accent"></div>
             <div class="pixel-arm left"></div><div class="pixel-arm right"></div>
             <div class="pixel-leg left"></div><div class="pixel-leg right"></div>
           </div>
@@ -75,7 +78,9 @@
         </div>
         <div class="character-options">
           <p class="eyebrow">创建角色</p>
-          <h2>准备好成为岛上的第一位居民</h2>
+          <h2>选择你的动漫冒险形象</h2>
+          <label class="field-label">角色预设</label>
+          <div id="preset-options" class="preset-grid"></div>
           <label class="field-label" for="name-input">角色昵称</label>
           <input id="name-input" maxlength="12" value="探险家" autocomplete="off" />
           <div class="option-row">
