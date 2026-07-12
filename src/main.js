@@ -38,6 +38,13 @@ const CHARACTER_COLORS = {
   shirt: ['#df794d', '#4f9ec4', '#6fa447', '#7a64b7', '#d2a83f'],
   hair: ['#4a3028', '#1f2732', '#9a6235', '#d1b36a', '#713f58']
 };
+const CHARACTER_PRESETS = {
+  furina: { label: '水之歌者', note: '芙宁娜风格', defaultName: '芙露娜', skin: '#f2c7a5', shirt: '#203f74', hair: '#e8edf4', trousers: '#16294f', accent: '#71d8e5', eyes: '#43bfe0', hairStyle: 'long', accessory: 'hat' },
+  sakura: { label: '樱花魔法使', note: '原创动漫', defaultName: '小樱', skin: '#f0c0a2', shirt: '#c86b9d', hair: '#efa5c4', trousers: '#60466f', accent: '#ffe5f1', eyes: '#8d4bb0', hairStyle: 'twin', accessory: 'ribbon' },
+  knight: { label: '金焰骑士', note: '原创动漫', defaultName: '艾琳', skin: '#e9b88f', shirt: '#e7e4da', hair: '#e3b95e', trousers: '#683d3b', accent: '#d84e3b', eyes: '#5c91c7', hairStyle: 'long', accessory: 'crown' },
+  miko: { label: '月夜巫女', note: '原创动漫', defaultName: '月璃', skin: '#f1c8ae', shirt: '#f3eee5', hair: '#202737', trousers: '#9d3341', accent: '#d94a5b', eyes: '#bc425c', hairStyle: 'long', accessory: 'ribbon' },
+  forest: { label: '森灵弓手', note: '原创动漫', defaultName: '青叶', skin: '#d7a47b', shirt: '#4f8b61', hair: '#75a86a', trousers: '#3f5748', accent: '#d5c46b', eyes: '#d1a83a', hairStyle: 'short', accessory: 'ears' }
+};
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color('#8dd1e8');
@@ -224,15 +231,17 @@ let editingCharacter = false;
 let characterFromStart = false;
 const character = {
   name: '探险家', skin: CHARACTER_COLORS.skin[1], shirt: CHARACTER_COLORS.shirt[0],
-  hair: CHARACTER_COLORS.hair[0], created: false
+  hair: CHARACTER_COLORS.hair[0], trousers: '#34455d', accent: '#f5d06f', eyes: '#243344',
+  hairStyle: 'short', accessory: 'none', preset: 'custom', created: false
 };
 
 const characterMaterials = {
   skin: new THREE.MeshLambertMaterial({ color: character.skin }),
   shirt: new THREE.MeshLambertMaterial({ color: character.shirt }),
   hair: new THREE.MeshLambertMaterial({ color: character.hair }),
-  trousers: new THREE.MeshLambertMaterial({ color: '#34455d' }),
-  eye: new THREE.MeshLambertMaterial({ color: '#1c2938' })
+  trousers: new THREE.MeshLambertMaterial({ color: character.trousers }),
+  accent: new THREE.MeshLambertMaterial({ color: character.accent }),
+  eye: new THREE.MeshLambertMaterial({ color: character.eyes })
 };
 const avatar = new THREE.Group();
 scene.add(avatar);
@@ -254,23 +263,79 @@ const avatarParts = {
 };
 avatarBox([.075, .085, .025], [-.12, 1.61, -.247], characterMaterials.eye);
 avatarBox([.075, .085, .025], [.12, 1.61, -.247], characterMaterials.eye);
+const avatarAccent = avatarBox([.1, .64, .025], [0, 1.02, -.183], characterMaterials.accent);
+const hairSides = [
+  avatarBox([.13, .55, .18], [-.28, 1.45, .08], characterMaterials.hair),
+  avatarBox([.13, .55, .18], [.28, 1.45, .08], characterMaterials.hair)
+];
+const accessoryGroups = {};
+accessoryGroups.hat = new THREE.Group(); avatar.add(accessoryGroups.hat);
+avatarBox([.76, .07, .58], [0, 1.94, .02], characterMaterials.shirt, accessoryGroups.hat);
+avatarBox([.42, .22, .44], [0, 2.07, .02], characterMaterials.shirt, accessoryGroups.hat);
+avatarBox([.44, .055, .46], [0, 2.0, -.205], characterMaterials.accent, accessoryGroups.hat);
+accessoryGroups.ribbon = new THREE.Group(); avatar.add(accessoryGroups.ribbon);
+const ribbonLeft = avatarBox([.3, .18, .1], [-.27, 1.78, .18], characterMaterials.accent, accessoryGroups.ribbon);
+const ribbonRight = avatarBox([.3, .18, .1], [.27, 1.78, .18], characterMaterials.accent, accessoryGroups.ribbon);
+ribbonLeft.rotation.z = -.35; ribbonRight.rotation.z = .35;
+accessoryGroups.crown = new THREE.Group(); avatar.add(accessoryGroups.crown);
+avatarBox([.5, .08, .42], [0, 1.94, .02], characterMaterials.accent, accessoryGroups.crown);
+avatarBox([.09, .22, .09], [-.17, 2.06, .02], characterMaterials.accent, accessoryGroups.crown);
+avatarBox([.09, .28, .09], [0, 2.09, .02], characterMaterials.accent, accessoryGroups.crown);
+avatarBox([.09, .22, .09], [.17, 2.06, .02], characterMaterials.accent, accessoryGroups.crown);
+accessoryGroups.ears = new THREE.Group(); avatar.add(accessoryGroups.ears);
+const earLeft = avatarBox([.13, .34, .13], [-.32, 1.76, 0], characterMaterials.hair, accessoryGroups.ears);
+const earRight = avatarBox([.13, .34, .13], [.32, 1.76, 0], characterMaterials.hair, accessoryGroups.ears);
+earLeft.rotation.z = -.45; earRight.rotation.z = .45;
 
 function applyCharacterAppearance() {
   characterMaterials.skin.color.set(character.skin);
   characterMaterials.shirt.color.set(character.shirt);
   characterMaterials.hair.color.set(character.hair);
+  characterMaterials.trousers.color.set(character.trousers);
+  characterMaterials.accent.color.set(character.accent);
+  characterMaterials.eye.color.set(character.eyes);
   characterPreview.style.setProperty('--skin', character.skin);
   characterPreview.style.setProperty('--shirt', character.shirt);
   characterPreview.style.setProperty('--hair', character.hair);
+  characterPreview.style.setProperty('--trousers', character.trousers);
+  characterPreview.style.setProperty('--accent', character.accent);
+  characterPreview.style.setProperty('--eyes', character.eyes);
+  characterPreview.dataset.hairStyle = character.hairStyle;
+  characterPreview.dataset.accessory = character.accessory;
+  const longHair = character.hairStyle === 'long' || character.hairStyle === 'twin';
+  hairSides.forEach((part, index) => {
+    part.visible = longHair;
+    part.position.x = character.hairStyle === 'twin' ? (index ? .38 : -.38) : (index ? .28 : -.28);
+  });
+  Object.entries(accessoryGroups).forEach(([name, group]) => { group.visible = character.accessory === name; });
+  avatarAccent.visible = true;
   characterNameEl.textContent = character.name || '探险家';
   for (const [kind, colors] of Object.entries(CHARACTER_COLORS)) {
     [...document.querySelector(`#${kind}-options`).children].forEach((button, index) => {
       button.classList.toggle('active', colors[index] === character[kind]);
     });
   }
+  document.querySelectorAll('.preset-card').forEach(card => card.classList.toggle('active', card.dataset.preset === character.preset));
+}
+
+function applyPreset(key) {
+  const preset = CHARACTER_PRESETS[key];
+  if (!preset) return;
+  Object.assign(character, preset, { preset: key, name: preset.defaultName });
+  nameInput.value = character.name;
+  applyCharacterAppearance();
 }
 
 function setupCharacterEditor() {
+  const presets = document.querySelector('#preset-options');
+  presets.innerHTML = '';
+  for (const [key, preset] of Object.entries(CHARACTER_PRESETS)) {
+    const button = document.createElement('button');
+    button.className = 'preset-card'; button.dataset.preset = key;
+    button.innerHTML = `<div class="preset-icon" style="--hair:${preset.hair};--skin:${preset.skin};--shirt:${preset.shirt};--accent:${preset.accent}"></div><strong>${preset.label}</strong><small>${preset.note}</small>`;
+    button.addEventListener('click', () => applyPreset(key));
+    presets.append(button);
+  }
   for (const [kind, colors] of Object.entries(CHARACTER_COLORS)) {
     const container = document.querySelector(`#${kind}-options`);
     container.innerHTML = '';
@@ -278,7 +343,7 @@ function setupCharacterEditor() {
       const button = document.createElement('button');
       button.className = 'swatch'; button.style.setProperty('--swatch', color);
       button.setAttribute('aria-label', `选择${kind}颜色`);
-      button.addEventListener('click', () => { character[kind] = color; applyCharacterAppearance(); });
+      button.addEventListener('click', () => { character[kind] = color; character.preset = 'custom'; applyCharacterAppearance(); });
       container.append(button);
     });
   }
