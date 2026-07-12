@@ -27,6 +27,17 @@ const countEl = document.querySelector('#placed-count');
 const timeLabel = document.querySelector('#time-label');
 const toast = document.querySelector('#toast');
 const hotbar = document.querySelector('#hotbar');
+const characterScreen = document.querySelector('#character-screen');
+const characterPreview = document.querySelector('#character-preview');
+const characterNameEl = document.querySelector('#character-name');
+const viewLabel = document.querySelector('#view-label');
+const nameInput = document.querySelector('#name-input');
+
+const CHARACTER_COLORS = {
+  skin: ['#f2c7a5', '#d9a077', '#b87550', '#75472f'],
+  shirt: ['#df794d', '#4f9ec4', '#6fa447', '#7a64b7', '#d2a83f'],
+  hair: ['#4a3028', '#1f2732', '#9a6235', '#d1b36a', '#713f58']
+};
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color('#8dd1e8');
@@ -208,6 +219,71 @@ let activeHit = null;
 let started = false;
 let dayPhase = .22;
 let manualTime = false;
+let thirdPerson = false;
+let editingCharacter = false;
+let characterFromStart = false;
+const character = {
+  name: '探险家', skin: CHARACTER_COLORS.skin[1], shirt: CHARACTER_COLORS.shirt[0],
+  hair: CHARACTER_COLORS.hair[0], created: false
+};
+
+const characterMaterials = {
+  skin: new THREE.MeshLambertMaterial({ color: character.skin }),
+  shirt: new THREE.MeshLambertMaterial({ color: character.shirt }),
+  hair: new THREE.MeshLambertMaterial({ color: character.hair }),
+  trousers: new THREE.MeshLambertMaterial({ color: '#34455d' }),
+  eye: new THREE.MeshLambertMaterial({ color: '#1c2938' })
+};
+const avatar = new THREE.Group();
+scene.add(avatar);
+
+function avatarBox(size, position, material, parent = avatar) {
+  const mesh = new THREE.Mesh(new THREE.BoxGeometry(...size), material);
+  mesh.position.set(...position); mesh.castShadow = true; mesh.receiveShadow = true;
+  parent.add(mesh); return mesh;
+}
+
+const avatarParts = {
+  leftLeg: avatarBox([.26, .72, .28], [-.15, .36, 0], characterMaterials.trousers),
+  rightLeg: avatarBox([.26, .72, .28], [.15, .36, 0], characterMaterials.trousers),
+  body: avatarBox([.62, .65, .34], [0, 1.02, 0], characterMaterials.shirt),
+  leftArm: avatarBox([.18, .7, .22], [-.42, 1.01, 0], characterMaterials.shirt),
+  rightArm: avatarBox([.18, .7, .22], [.42, 1.01, 0], characterMaterials.shirt),
+  head: avatarBox([.5, .48, .48], [0, 1.58, 0], characterMaterials.skin),
+  hair: avatarBox([.54, .14, .52], [0, 1.85, .01], characterMaterials.hair)
+};
+avatarBox([.075, .085, .025], [-.12, 1.61, -.247], characterMaterials.eye);
+avatarBox([.075, .085, .025], [.12, 1.61, -.247], characterMaterials.eye);
+
+function applyCharacterAppearance() {
+  characterMaterials.skin.color.set(character.skin);
+  characterMaterials.shirt.color.set(character.shirt);
+  characterMaterials.hair.color.set(character.hair);
+  characterPreview.style.setProperty('--skin', character.skin);
+  characterPreview.style.setProperty('--shirt', character.shirt);
+  characterPreview.style.setProperty('--hair', character.hair);
+  characterNameEl.textContent = character.name || '探险家';
+  for (const [kind, colors] of Object.entries(CHARACTER_COLORS)) {
+    [...document.querySelector(`#${kind}-options`).children].forEach((button, index) => {
+      button.classList.toggle('active', colors[index] === character[kind]);
+    });
+  }
+}
+
+function setupCharacterEditor() {
+  for (const [kind, colors] of Object.entries(CHARACTER_COLORS)) {
+    const container = document.querySelector(`#${kind}-options`);
+    container.innerHTML = '';
+    colors.forEach(color => {
+      const button = document.createElement('button');
+      button.className = 'swatch'; button.style.setProperty('--swatch', color);
+      button.setAttribute('aria-label', `选择${kind}颜色`);
+      button.addEventListener('click', () => { character[kind] = color; applyCharacterAppearance(); });
+      container.append(button);
+    });
+  }
+  applyCharacterAppearance();
+}
 
 function collides(pos) {
   const minX = Math.floor(pos.x - player.radius);
@@ -254,8 +330,38 @@ function movePlayer(delta) {
   player.position.x = THREE.MathUtils.clamp(player.position.x, -HALF + .35, HALF - .35);
   player.position.z = THREE.MathUtils.clamp(player.position.z, -HALF + .35, HALF - .35);
   if (player.position.y < -10) respawn();
-  camera.position.set(player.position.x, player.position.y + 1.62, player.position.z);
-  camera.rotation.set(player.pitch, player.yaw, 0);
+}
+
+function updateAvatar(delta) {
+  avatar.position.copy(player.position);
+  avatar.rotation.y = player.yaw;
+  avatar.visible = thirdPerson;
+  const moving = Math.hypot(player.velocity.x, player.velocity.z) > .25 && player.grounded;
+  const swing = moving ? Math.sin(performance.now() * .012) * .55 : 0;
+  const easing = Math.min(1, delta * 14);
+  avatarParts.leftArm.rotation.x += (swing - avatarParts.leftArm.rotation.x) * easing;
+  avatarParts.rightArm.rotation.x += (-swing - avatarParts.rightArm.rotation.x) * easing;
+  avatarParts.leftLeg.rotation.x += (-swing - avatarParts.leftLeg.rotation.x) * easing;
+  avatarParts.rightLeg.rotation.x += (swing - avatarParts.rightLeg.rotation.x) * easing;
+}
+
+function updateCamera() {
+  if (!thirdPerson) {
+    camera.position.set(player.position.x, player.position.y + 1.62, player.position.z);
+    camera.rotation.set(player.pitch, player.yaw, 0);
+    return;
+  }
+  const target = player.position.clone().add(new THREE.Vector3(0, 1.22, 0));
+  const offset = new THREE.Vector3(0, 1.55 + player.pitch * .75, 4.3).applyAxisAngle(new THREE.Vector3(0, 1, 0), player.yaw);
+  camera.position.copy(target).add(offset);
+  camera.lookAt(target);
+}
+
+function toggleView() {
+  thirdPerson = !thirdPerson;
+  viewLabel.textContent = thirdPerson ? '第三人称' : '第一人称';
+  showToast(thirdPerson ? '已切换为第三人称' : '已切换为第一人称');
+  saveWorld(false);
 }
 
 function respawn() {
@@ -328,7 +434,7 @@ function saveWorld(showMessage = true) {
   const data = {
     changes: [...editableChanges], placed: player.placed,
     position: player.position.toArray(), yaw: player.yaw, pitch: player.pitch,
-    selectedIndex, dayPhase
+    selectedIndex, dayPhase, thirdPerson, character
   };
   localStorage.setItem(SAVE_KEY, JSON.stringify(data));
   if (showMessage) showToast('世界已保存');
@@ -344,6 +450,8 @@ function loadWorld() {
     if (data.position?.length === 3) player.position.fromArray(data.position);
     player.yaw = data.yaw || 0; player.pitch = data.pitch || 0;
     selectedIndex = data.selectedIndex || 0; dayPhase = data.dayPhase ?? dayPhase;
+    thirdPerson = Boolean(data.thirdPerson);
+    if (data.character) Object.assign(character, data.character);
   } catch { localStorage.removeItem(SAVE_KEY); }
 }
 
@@ -369,23 +477,47 @@ function updateSky(delta) {
 }
 
 function begin() {
+  editingCharacter = false;
   started = true;
   startScreen.classList.add('hidden');
   pauseScreen.classList.add('hidden');
+  characterScreen.classList.add('hidden');
   hud.classList.remove('hidden');
   renderer.domElement.requestPointerLock();
 }
 
-document.querySelector('#play-button').addEventListener('click', begin);
+function openCharacterEditor(fromStart = false) {
+  characterFromStart = fromStart;
+  editingCharacter = true;
+  if (document.pointerLockElement) document.exitPointerLock();
+  startScreen.classList.add('hidden'); pauseScreen.classList.add('hidden');
+  characterScreen.classList.remove('hidden');
+  nameInput.value = character.name;
+  applyCharacterAppearance();
+}
+
+document.querySelector('#play-button').addEventListener('click', () => character.created ? begin() : openCharacterEditor(true));
 document.querySelector('#resume-button').addEventListener('click', begin);
 document.querySelector('#save-button').addEventListener('click', () => saveWorld(true));
+document.querySelector('#view-button').addEventListener('click', toggleView);
+document.querySelector('#character-button').addEventListener('click', () => openCharacterEditor(false));
+document.querySelector('#pause-character-button').addEventListener('click', () => openCharacterEditor(false));
+document.querySelector('#save-character-button').addEventListener('click', () => {
+  character.name = nameInput.value.trim().slice(0, 12) || '探险家';
+  character.created = true; applyCharacterAppearance(); saveWorld(false); begin();
+  showToast(`${character.name}，欢迎来到方块岛`);
+});
+document.querySelector('#cancel-character-button').addEventListener('click', () => {
+  characterScreen.classList.add('hidden'); editingCharacter = false;
+  if (characterFromStart && !started) startScreen.classList.remove('hidden'); else begin();
+});
 document.querySelector('#day-button').addEventListener('click', () => {
   manualTime = true;
   dayPhase = Math.sin(dayPhase * Math.PI * 2) > .2 ? .66 : .22;
   showToast(dayPhase < .5 ? '太阳升起来了' : '夜幕降临');
 });
 document.querySelector('#reset-button').addEventListener('click', () => {
-  localStorage.removeItem(SAVE_KEY); editableChanges.clear(); player.placed = 0;
+  editableChanges.clear(); player.placed = 0;
   player.yaw = player.pitch = 0; dayPhase = .22; manualTime = false;
   respawn(); generateWorld(); rebuildMeshes(); countEl.textContent = '0'; begin();
 });
@@ -405,11 +537,13 @@ document.addEventListener('mousemove', event => {
 document.addEventListener('keydown', event => {
   keys.add(event.code);
   if (/^Digit[1-6]$/.test(event.code)) selectSlot(Number(event.code.at(-1)) - 1);
+  if (event.code === 'F5' && started) { event.preventDefault(); toggleView(); }
+  if (event.code === 'KeyC' && started && !editingCharacter) openCharacterEditor(false);
 });
 document.addEventListener('keyup', event => keys.delete(event.code));
 document.addEventListener('pointerlockchange', () => {
   const locked = document.pointerLockElement === renderer.domElement;
-  if (started && !locked) pauseScreen.classList.remove('hidden');
+  if (started && !locked && !editingCharacter) pauseScreen.classList.remove('hidden');
   if (locked) pauseScreen.classList.add('hidden');
 });
 window.addEventListener('beforeunload', () => saveWorld(false));
@@ -422,17 +556,17 @@ loadWorld();
 generateWorld();
 rebuildMeshes();
 buildHotbar();
+setupCharacterEditor();
+nameInput.value = character.name;
 countEl.textContent = player.placed;
+viewLabel.textContent = thirdPerson ? '第三人称' : '第一人称';
 
 const clock = new THREE.Clock();
 function animate() {
   requestAnimationFrame(animate);
   const delta = Math.min(clock.getDelta(), .05);
   if (document.pointerLockElement === renderer.domElement) movePlayer(delta);
-  else {
-    camera.position.set(player.position.x, player.position.y + 1.62, player.position.z);
-    camera.rotation.set(player.pitch, player.yaw, 0);
-  }
+  updateAvatar(delta); updateCamera();
   updateTarget(); updateSky(delta);
   coordsEl.textContent = `${player.position.x.toFixed(1)} / ${player.position.y.toFixed(1)} / ${player.position.z.toFixed(1)}`;
   renderer.render(scene, camera);
