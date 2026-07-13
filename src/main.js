@@ -29,6 +29,12 @@ const toast = document.querySelector('#toast');
 const hotbar = document.querySelector('#hotbar');
 const characterScreen = document.querySelector('#character-screen');
 const guideScreen = document.querySelector('#guide-screen');
+const showcaseScreen = document.querySelector('#showcase-screen');
+const showcaseCharacterName = document.querySelector('#showcase-character-name');
+const showcaseCharacterNote = document.querySelector('#showcase-character-note');
+const showcaseCounter = document.querySelector('#showcase-counter');
+const showcaseModelType = document.querySelector('#showcase-model-type');
+const showcaseActionLabel = document.querySelector('#showcase-action-label');
 const characterPreview = document.querySelector('#character-preview');
 const characterNameEl = document.querySelector('#character-name');
 const viewLabel = document.querySelector('#view-label');
@@ -88,6 +94,35 @@ const sunDisc = new THREE.Mesh(
   new THREE.MeshBasicMaterial({ color: '#fff2a6', fog: false })
 );
 scene.add(sunDisc);
+
+const showcaseScene = new THREE.Scene();
+showcaseScene.background = new THREE.Color('#15263d');
+showcaseScene.fog = new THREE.Fog('#15263d', 7, 14);
+const showcaseCamera = new THREE.PerspectiveCamera(40, innerWidth / innerHeight, .05, 30);
+showcaseCamera.position.set(0, 1.65, -5.1); showcaseCamera.lookAt(0, 1.15, 0);
+showcaseScene.add(new THREE.HemisphereLight('#c9efff', '#182237', 2.0));
+const showcaseKey = new THREE.DirectionalLight('#ffe6b0', 3.2);
+showcaseKey.position.set(-3, 6, -4); showcaseKey.castShadow = true; showcaseScene.add(showcaseKey);
+const showcaseRim = new THREE.PointLight('#64c8ff', 16, 8);
+showcaseRim.position.set(3, 2.8, 2); showcaseScene.add(showcaseRim);
+const showcaseStage = new THREE.Group(); showcaseScene.add(showcaseStage);
+const stageDark = new THREE.MeshStandardMaterial({ color: '#17263b', roughness: .72, metalness: .15 });
+const stageTop = new THREE.MeshStandardMaterial({ color: '#355374', roughness: .6, metalness: .18 });
+const stageGlow = new THREE.MeshStandardMaterial({ color: '#69d8ea', emissive: '#1d7788', emissiveIntensity: 1.5, roughness: .25 });
+function stageBox(size, position, material) {
+  const mesh = new THREE.Mesh(new THREE.BoxGeometry(...size), material);
+  mesh.position.set(...position); mesh.receiveShadow = true; mesh.castShadow = true; showcaseStage.add(mesh); return mesh;
+}
+stageBox([5.8, .28, 5.8], [0, .02, 0], stageDark);
+stageBox([3.25, .22, 3.25], [0, .27, 0], stageTop);
+stageBox([3.4, .055, .12], [0, .4, -1.68], stageGlow);
+stageBox([3.4, .055, .12], [0, .4, 1.68], stageGlow);
+stageBox([.12, .055, 3.4], [-1.68, .4, 0], stageGlow);
+stageBox([.12, .055, 3.4], [1.68, .4, 0], stageGlow);
+for (const x of [-2.4, 2.4]) for (const z of [-2.4, 2.4]) {
+  stageBox([.28, 2.8, .28], [x, 1.35, z], stageDark);
+  stageBox([.36, .12, .36], [x, 2.77, z], stageGlow);
+}
 
 function pixelTexture(base, accents) {
   const canvas = document.createElement('canvas');
@@ -239,6 +274,11 @@ let frontView = false;
 let editingCharacter = false;
 let readingGuide = false;
 let guideFromStart = false;
+let showcaseMode = false;
+let showcaseFromStart = false;
+let showcaseAnimation = 'idle';
+let showcaseAutoRotate = true;
+let showcasePresetIndex = 0;
 let characterFromStart = false;
 const character = {
   name: '探险家', skin: CHARACTER_COLORS.skin[1], shirt: CHARACTER_COLORS.shirt[0],
@@ -509,6 +549,91 @@ function setupCharacterEditor() {
     });
   }
   applyCharacterAppearance();
+}
+
+const SHOWCASE_ACTION_NAMES = { idle: '待机', walk: '行走', run: '奔跑', jump: '跳跃', attack: '攻击', phone: '通话' };
+const showcasePresetKeys = Object.keys(CHARACTER_PRESETS);
+
+function updateShowcaseInfo() {
+  const key = showcasePresetKeys[showcasePresetIndex];
+  const preset = CHARACTER_PRESETS[key];
+  showcaseCharacterName.textContent = preset.label;
+  showcaseCharacterNote.textContent = preset.note;
+  showcaseCounter.textContent = `${showcasePresetIndex + 1} / ${showcasePresetKeys.length}`;
+  showcaseModelType.textContent = preset.model === 'mint' ? '专属高精度体素' : '模块化体素';
+  showcaseActionLabel.textContent = SHOWCASE_ACTION_NAMES[showcaseAnimation];
+}
+
+function selectShowcaseCharacter(offset) {
+  showcasePresetIndex = (showcasePresetIndex + offset + showcasePresetKeys.length) % showcasePresetKeys.length;
+  applyPreset(showcasePresetKeys[showcasePresetIndex]);
+  character.created = true;
+  updateShowcaseInfo();
+}
+
+function openShowcase(fromStart = false) {
+  showcaseFromStart = fromStart;
+  showcaseMode = true;
+  if (document.pointerLockElement) document.exitPointerLock();
+  startScreen.classList.add('hidden'); pauseScreen.classList.add('hidden');
+  characterScreen.classList.add('hidden'); guideScreen.classList.add('hidden'); hud.classList.add('hidden');
+  showcaseScreen.classList.remove('hidden');
+  showcaseScene.add(avatar); showcaseScene.add(mintAvatar);
+  const current = showcasePresetKeys.indexOf(character.preset);
+  showcasePresetIndex = current >= 0 ? current : 0;
+  applyPreset(showcasePresetKeys[showcasePresetIndex]);
+  updateShowcaseInfo();
+}
+
+function closeShowcase() {
+  showcaseMode = false; showcaseScreen.classList.add('hidden');
+  scene.add(avatar); scene.add(mintAvatar); saveWorld(false);
+  if (showcaseFromStart && !started) startScreen.classList.remove('hidden'); else begin();
+}
+
+function setShowcaseAnimation(action) {
+  showcaseAnimation = action;
+  document.querySelectorAll('#showcase-actions button').forEach(button => button.classList.toggle('active', button.dataset.action === action));
+  updateShowcaseInfo();
+}
+
+function updateShowcase(delta) {
+  const time = performance.now() * .001;
+  const mintSelected = character.model === 'mint';
+  const active = mintSelected ? mintAvatar : avatar;
+  avatar.visible = !mintSelected; mintAvatar.visible = mintSelected;
+  active.position.set(0, .42, 0);
+  if (showcaseAutoRotate) active.rotation.y += delta * .38;
+  else active.rotation.y += (0 - active.rotation.y) * Math.min(1, delta * 7);
+
+  let frequency = 0, amount = 0, lift = 0;
+  if (showcaseAnimation === 'walk') { frequency = 5.5; amount = .55; lift = Math.abs(Math.sin(time * frequency)) * .035; }
+  if (showcaseAnimation === 'run') { frequency = 9; amount = .95; lift = Math.abs(Math.sin(time * frequency)) * .075; }
+  if (showcaseAnimation === 'jump') lift = Math.abs(Math.sin(time * 2.5)) * .72;
+  const swing = frequency ? Math.sin(time * frequency) * amount : 0;
+  const attackSwing = showcaseAnimation === 'attack' ? -1.1 + Math.sin(time * 8) * .65 : 0;
+  const phonePose = showcaseAnimation === 'phone' ? -1.28 : 0;
+  const ease = Math.min(1, delta * 12);
+  active.position.y += lift;
+
+  avatarParts.leftLeg.rotation.x += (-swing - avatarParts.leftLeg.rotation.x) * ease;
+  avatarParts.rightLeg.rotation.x += (swing - avatarParts.rightLeg.rotation.x) * ease;
+  avatarParts.leftArm.rotation.x += (swing - avatarParts.leftArm.rotation.x) * ease;
+  avatarParts.rightArm.rotation.x += ((showcaseAnimation === 'attack' ? attackSwing : -swing) - avatarParts.rightArm.rotation.x) * ease;
+  avatarParts.rightArm.rotation.z += (phonePose - avatarParts.rightArm.rotation.z) * ease;
+
+  mintParts.leftLeg.rotation.x += (-swing - mintParts.leftLeg.rotation.x) * ease;
+  mintParts.rightLeg.rotation.x += (swing - mintParts.rightLeg.rotation.x) * ease;
+  const mintArmTarget = showcaseAnimation === 'attack' ? attackSwing : swing * .7;
+  mintParts.leftArm.rotation.x += (mintArmTarget - mintParts.leftArm.rotation.x) * ease;
+  mintParts.braids.forEach((braid, index) => {
+    const sway = Math.sin(time * (frequency || 2.2) + index * Math.PI) * (amount ? .09 : .025);
+    braid.rotation.x += (sway - braid.rotation.x) * ease;
+  });
+  if (showcaseAnimation === 'idle' || showcaseAnimation === 'phone') {
+    active.position.y += Math.sin(time * 2) * .012;
+  }
+  showcaseCamera.lookAt(0, 1.35, 0);
 }
 
 function collides(pos) {
@@ -897,11 +1022,13 @@ function updateSky(delta) {
 function begin() {
   editingCharacter = false;
   readingGuide = false;
+  showcaseMode = false;
   started = true;
   startScreen.classList.add('hidden');
   pauseScreen.classList.add('hidden');
   characterScreen.classList.add('hidden');
   guideScreen.classList.add('hidden');
+  showcaseScreen.classList.add('hidden');
   hud.classList.remove('hidden');
   renderer.domElement.requestPointerLock();
 }
@@ -931,10 +1058,23 @@ function openCharacterEditor(fromStart = false) {
 
 document.querySelector('#play-button').addEventListener('click', () => character.created ? begin() : openCharacterEditor(true));
 document.querySelector('#guide-button').addEventListener('click', () => openGuide(true));
+document.querySelector('#showcase-button').addEventListener('click', () => openShowcase(true));
 document.querySelector('#resume-button').addEventListener('click', begin);
 document.querySelector('#pause-guide-button').addEventListener('click', () => openGuide(false));
+document.querySelector('#pause-showcase-button').addEventListener('click', () => openShowcase(false));
 document.querySelector('#close-guide-button').addEventListener('click', closeGuide);
 document.querySelector('#guide-continue-button').addEventListener('click', closeGuide);
+document.querySelector('#previous-showcase-character').addEventListener('click', () => selectShowcaseCharacter(-1));
+document.querySelector('#next-showcase-character').addEventListener('click', () => selectShowcaseCharacter(1));
+document.querySelector('#close-showcase-button').addEventListener('click', closeShowcase);
+document.querySelectorAll('#showcase-actions button').forEach(button => {
+  button.addEventListener('click', () => setShowcaseAnimation(button.dataset.action));
+});
+document.querySelector('#showcase-rotate-button').addEventListener('click', event => {
+  showcaseAutoRotate = !showcaseAutoRotate;
+  event.currentTarget.classList.toggle('active', showcaseAutoRotate);
+  event.currentTarget.textContent = `↻ 自动旋转：${showcaseAutoRotate ? '开' : '关'}`;
+});
 document.querySelector('#save-button').addEventListener('click', () => saveWorld(true));
 document.querySelector('#view-button').addEventListener('click', toggleView);
 document.querySelector('#character-button').addEventListener('click', () => openCharacterEditor(false));
@@ -960,7 +1100,7 @@ document.querySelector('#reset-button').addEventListener('click', () => {
 });
 
 renderer.domElement.addEventListener('click', () => {
-  if (started && document.pointerLockElement !== renderer.domElement) renderer.domElement.requestPointerLock();
+  if (started && !showcaseMode && document.pointerLockElement !== renderer.domElement) renderer.domElement.requestPointerLock();
 });
 renderer.domElement.addEventListener('mousedown', event => editBlock(event.button));
 renderer.domElement.addEventListener('contextmenu', event => event.preventDefault());
@@ -974,18 +1114,19 @@ document.addEventListener('mousemove', event => {
 document.addEventListener('keydown', event => {
   keys.add(event.code);
   if (/^Digit[1-6]$/.test(event.code)) selectSlot(Number(event.code.at(-1)) - 1);
-  if (event.code === 'F5' && started) { event.preventDefault(); toggleView(); }
-  if (event.code === 'KeyC' && started && !editingCharacter) openCharacterEditor(false);
+  if (event.code === 'F5' && started && !showcaseMode) { event.preventDefault(); toggleView(); }
+  if (event.code === 'KeyC' && started && !editingCharacter && !showcaseMode) openCharacterEditor(false);
 });
 document.addEventListener('keyup', event => keys.delete(event.code));
 document.addEventListener('pointerlockchange', () => {
   const locked = document.pointerLockElement === renderer.domElement;
-  if (started && !locked && !editingCharacter && !readingGuide) pauseScreen.classList.remove('hidden');
+  if (started && !locked && !editingCharacter && !readingGuide && !showcaseMode) pauseScreen.classList.remove('hidden');
   if (locked) pauseScreen.classList.add('hidden');
 });
 window.addEventListener('beforeunload', () => saveWorld(false));
 window.addEventListener('resize', () => {
   camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
+  showcaseCamera.aspect = innerWidth / innerHeight; showcaseCamera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight); renderer.setPixelRatio(Math.min(devicePixelRatio, 1.75));
 });
 
@@ -1004,6 +1145,11 @@ const clock = new THREE.Clock();
 function animate() {
   requestAnimationFrame(animate);
   const delta = Math.min(clock.getDelta(), .05);
+  if (showcaseMode) {
+    updateShowcase(delta);
+    renderer.render(showcaseScene, showcaseCamera);
+    return;
+  }
   if (document.pointerLockElement === renderer.domElement) movePlayer(delta);
   updateAvatar(delta); updateCamera();
   updateMonsters(delta, document.pointerLockElement === renderer.domElement);
