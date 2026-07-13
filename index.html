@@ -16,6 +16,7 @@
         <h1>BLOCK<span>HAVEN</span></h1>
         <p class="intro">采集、搭建、探索。每一次进入，岛屿都会等你继续完成它。</p>
         <button id="play-button" class="primary">进入世界 <span>→</span></button>
+        <button id="showcase-button" class="showcase-link">◆ 打开角色展示台</button>
         <button id="guide-button" class="guide-link">查看完整玩法说明</button>
         <div class="controls-grid">
           <div><kbd>WASD</kbd><span>移动</span></div>
@@ -62,6 +63,7 @@
         <h2>方块岛还在等你</h2>
         <button id="resume-button" class="primary">继续探索</button>
         <button id="pause-guide-button" class="secondary">玩法说明</button>
+        <button id="pause-showcase-button" class="secondary">角色展示台</button>
         <button id="pause-character-button" class="secondary">编辑角色</button>
         <button id="reset-button" class="secondary">生成新世界</button>
       </div>
@@ -83,6 +85,35 @@
         </div>
         <div class="guide-footer"><span>推荐使用桌面版 Chrome / Edge 与键盘鼠标</span><button id="guide-continue-button" class="primary">明白了，继续游戏</button></div>
       </div>
+    </section>
+
+    <section id="showcase-screen" class="showcase-overlay hidden">
+      <div class="showcase-panel glass">
+        <p class="eyebrow">模型与动作预览</p>
+        <h2 id="showcase-character-name">薄荷通讯者</h2>
+        <p id="showcase-character-note" class="showcase-note">高精度方块角色</p>
+        <div class="showcase-selector">
+          <button id="previous-showcase-character" aria-label="上一个角色">←</button>
+          <span id="showcase-counter">1 / 6</span>
+          <button id="next-showcase-character" aria-label="下一个角色">→</button>
+        </div>
+        <label>动作形态</label>
+        <div id="showcase-actions" class="showcase-actions">
+          <button data-action="idle" class="active">待机</button>
+          <button data-action="walk">行走</button>
+          <button data-action="run">奔跑</button>
+          <button data-action="jump">跳跃</button>
+          <button data-action="attack">攻击</button>
+          <button data-action="phone">通话</button>
+        </div>
+        <button id="showcase-rotate-button" class="showcase-toggle active">↻ 自动旋转：开</button>
+        <div class="showcase-stats">
+          <div><span>模型类型</span><strong id="showcase-model-type">专属体素</strong></div>
+          <div><span>当前动作</span><strong id="showcase-action-label">待机</strong></div>
+        </div>
+        <button id="close-showcase-button" class="primary">使用该角色并返回</button>
+      </div>
+      <div class="showcase-caption"><strong>BLOCKHAVEN MODEL STAGE</strong><span>真实游戏模型 · 实时动作</span></div>
     </section>
 
     <section id="character-screen" class="screen hidden">
