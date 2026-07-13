@@ -28,6 +28,7 @@ const timeLabel = document.querySelector('#time-label');
 const toast = document.querySelector('#toast');
 const hotbar = document.querySelector('#hotbar');
 const characterScreen = document.querySelector('#character-screen');
+const guideScreen = document.querySelector('#guide-screen');
 const characterPreview = document.querySelector('#character-preview');
 const characterNameEl = document.querySelector('#character-name');
 const viewLabel = document.querySelector('#view-label');
@@ -236,6 +237,8 @@ let manualTime = false;
 let thirdPerson = false;
 let frontView = false;
 let editingCharacter = false;
+let readingGuide = false;
+let guideFromStart = false;
 let characterFromStart = false;
 const character = {
   name: '探险家', skin: CHARACTER_COLORS.skin[1], shirt: CHARACTER_COLORS.shirt[0],
@@ -893,12 +896,27 @@ function updateSky(delta) {
 
 function begin() {
   editingCharacter = false;
+  readingGuide = false;
   started = true;
   startScreen.classList.add('hidden');
   pauseScreen.classList.add('hidden');
   characterScreen.classList.add('hidden');
+  guideScreen.classList.add('hidden');
   hud.classList.remove('hidden');
   renderer.domElement.requestPointerLock();
+}
+
+function openGuide(fromStart = false) {
+  guideFromStart = fromStart;
+  readingGuide = true;
+  if (document.pointerLockElement) document.exitPointerLock();
+  startScreen.classList.add('hidden'); pauseScreen.classList.add('hidden');
+  guideScreen.classList.remove('hidden');
+}
+
+function closeGuide() {
+  guideScreen.classList.add('hidden'); readingGuide = false;
+  if (guideFromStart && !started) startScreen.classList.remove('hidden'); else begin();
 }
 
 function openCharacterEditor(fromStart = false) {
@@ -912,7 +930,11 @@ function openCharacterEditor(fromStart = false) {
 }
 
 document.querySelector('#play-button').addEventListener('click', () => character.created ? begin() : openCharacterEditor(true));
+document.querySelector('#guide-button').addEventListener('click', () => openGuide(true));
 document.querySelector('#resume-button').addEventListener('click', begin);
+document.querySelector('#pause-guide-button').addEventListener('click', () => openGuide(false));
+document.querySelector('#close-guide-button').addEventListener('click', closeGuide);
+document.querySelector('#guide-continue-button').addEventListener('click', closeGuide);
 document.querySelector('#save-button').addEventListener('click', () => saveWorld(true));
 document.querySelector('#view-button').addEventListener('click', toggleView);
 document.querySelector('#character-button').addEventListener('click', () => openCharacterEditor(false));
@@ -958,7 +980,7 @@ document.addEventListener('keydown', event => {
 document.addEventListener('keyup', event => keys.delete(event.code));
 document.addEventListener('pointerlockchange', () => {
   const locked = document.pointerLockElement === renderer.domElement;
-  if (started && !locked && !editingCharacter) pauseScreen.classList.remove('hidden');
+  if (started && !locked && !editingCharacter && !readingGuide) pauseScreen.classList.remove('hidden');
   if (locked) pauseScreen.classList.add('hidden');
 });
 window.addEventListener('beforeunload', () => saveWorld(false));
