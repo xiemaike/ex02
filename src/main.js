@@ -35,6 +35,7 @@ const showcaseCharacterNote = document.querySelector('#showcase-character-note')
 const showcaseCounter = document.querySelector('#showcase-counter');
 const showcaseModelType = document.querySelector('#showcase-model-type');
 const showcaseActionLabel = document.querySelector('#showcase-action-label');
+const showcaseEffectLabel = document.querySelector('#showcase-effect-label');
 const characterPreview = document.querySelector('#character-preview');
 const characterNameEl = document.querySelector('#character-name');
 const viewLabel = document.querySelector('#view-label');
@@ -106,6 +107,7 @@ showcaseKey.position.set(-3, 6, -4); showcaseKey.castShadow = true; showcaseScen
 const showcaseRim = new THREE.PointLight('#64c8ff', 16, 8);
 showcaseRim.position.set(3, 2.8, 2); showcaseScene.add(showcaseRim);
 const showcaseStage = new THREE.Group(); showcaseScene.add(showcaseStage);
+const showcaseEffects = new THREE.Group(); showcaseScene.add(showcaseEffects);
 const stageDark = new THREE.MeshStandardMaterial({ color: '#17263b', roughness: .72, metalness: .15 });
 const stageTop = new THREE.MeshStandardMaterial({ color: '#355374', roughness: .6, metalness: .18 });
 const stageGlow = new THREE.MeshStandardMaterial({ color: '#69d8ea', emissive: '#1d7788', emissiveIntensity: 1.5, roughness: .25 });
@@ -122,6 +124,38 @@ stageBox([.12, .055, 3.4], [1.68, .4, 0], stageGlow);
 for (const x of [-2.4, 2.4]) for (const z of [-2.4, 2.4]) {
   stageBox([.28, 2.8, .28], [x, 1.35, z], stageDark);
   stageBox([.36, .12, .36], [x, 2.77, z], stageGlow);
+}
+
+function effectMaterial(color, opacity = 1) {
+  return new THREE.MeshBasicMaterial({ color, transparent: true, opacity, depthWrite: false, side: THREE.DoubleSide });
+}
+
+const idleRing = new THREE.Mesh(new THREE.TorusGeometry(.8, .025, 4, 48), effectMaterial('#75e7ff', .65));
+idleRing.rotation.x = Math.PI / 2; idleRing.position.y = .47; showcaseEffects.add(idleRing);
+const jumpRing = new THREE.Mesh(new THREE.TorusGeometry(.68, .045, 4, 48), effectMaterial('#ffd36c', .85));
+jumpRing.rotation.x = Math.PI / 2; jumpRing.position.y = .48; showcaseEffects.add(jumpRing);
+const attackSlash = new THREE.Mesh(new THREE.RingGeometry(.72, .86, 28, 1, -.82, 1.72), effectMaterial('#fff2a8', .9));
+attackSlash.position.set(0, 1.45, -.62); attackSlash.rotation.z = -.48; showcaseEffects.add(attackSlash);
+
+const dustParticles = [];
+for (let i = 0; i < 12; i++) {
+  const particle = new THREE.Mesh(new THREE.BoxGeometry(.07 + i % 3 * .018, .07 + i % 2 * .018, .07), effectMaterial(i % 3 ? '#9ac8d7' : '#ffd36c', .7));
+  particle.userData.phase = i / 12;
+  showcaseEffects.add(particle); dustParticles.push(particle);
+}
+
+const speedTrails = [];
+for (let i = 0; i < 8; i++) {
+  const trail = new THREE.Mesh(new THREE.BoxGeometry(.34 + i % 3 * .16, .025, .035), effectMaterial(i % 2 ? '#75e7ff' : '#ffd36c', .65));
+  trail.userData.phase = i / 8;
+  showcaseEffects.add(trail); speedTrails.push(trail);
+}
+
+const phoneWaves = [];
+for (let i = 0; i < 3; i++) {
+  const wave = new THREE.Mesh(new THREE.TorusGeometry(.17, .018, 4, 28), effectMaterial(i === 1 ? '#ff8cc8' : '#75e7ff', .75));
+  wave.position.set(.62, 1.94, -.58); wave.userData.phase = i / 3;
+  showcaseEffects.add(wave); phoneWaves.push(wave);
 }
 
 function pixelTexture(base, accents) {
@@ -552,6 +586,7 @@ function setupCharacterEditor() {
 }
 
 const SHOWCASE_ACTION_NAMES = { idle: '待机', walk: '行走', run: '奔跑', jump: '跳跃', attack: '攻击', phone: '通话' };
+const SHOWCASE_EFFECT_NAMES = { idle: '呼吸光环', walk: '落脚方块尘', run: '速度残影', jump: '起跳冲击环', attack: '体素斩击', phone: '通讯波纹' };
 const showcasePresetKeys = Object.keys(CHARACTER_PRESETS);
 
 function updateShowcaseInfo() {
@@ -562,6 +597,7 @@ function updateShowcaseInfo() {
   showcaseCounter.textContent = `${showcasePresetIndex + 1} / ${showcasePresetKeys.length}`;
   showcaseModelType.textContent = preset.model === 'mint' ? '专属高精度体素' : '模块化体素';
   showcaseActionLabel.textContent = SHOWCASE_ACTION_NAMES[showcaseAnimation];
+  showcaseEffectLabel.textContent = SHOWCASE_EFFECT_NAMES[showcaseAnimation];
 }
 
 function selectShowcaseCharacter(offset) {
@@ -633,6 +669,51 @@ function updateShowcase(delta) {
   if (showcaseAnimation === 'idle' || showcaseAnimation === 'phone') {
     active.position.y += Math.sin(time * 2) * .012;
   }
+
+  idleRing.visible = showcaseAnimation === 'idle';
+  jumpRing.visible = showcaseAnimation === 'jump';
+  attackSlash.visible = showcaseAnimation === 'attack';
+  idleRing.scale.setScalar(1 + Math.sin(time * 2) * .1);
+  idleRing.material.opacity = .42 + Math.sin(time * 2) * .18;
+
+  const jumpPulse = (Math.sin(time * 2.5) + 1) / 2;
+  jumpRing.scale.setScalar(.75 + jumpPulse * 1.05);
+  jumpRing.material.opacity = .85 * (1 - jumpPulse * .65);
+
+  const slashPulse = (Math.sin(time * 8) + 1) / 2;
+  attackSlash.scale.setScalar(.8 + slashPulse * .48);
+  attackSlash.rotation.z = -.75 + slashPulse * .6;
+  attackSlash.material.opacity = .22 + slashPulse * .78;
+
+  dustParticles.forEach((particle, index) => {
+    const showDust = showcaseAnimation === 'walk' || showcaseAnimation === 'run';
+    particle.visible = showDust;
+    if (!showDust) return;
+    const speed = showcaseAnimation === 'run' ? 2.8 : 1.55;
+    const progress = (time * speed + particle.userData.phase) % 1;
+    const side = index % 2 ? 1 : -1;
+    particle.position.set(side * (.16 + progress * .55), .49 + progress * .33, .08 + (index % 3 - 1) * .18);
+    particle.rotation.set(progress * 4, progress * 3, progress * 2);
+    particle.material.opacity = (1 - progress) * (showcaseAnimation === 'run' ? .82 : .58);
+  });
+
+  speedTrails.forEach((trail, index) => {
+    trail.visible = showcaseAnimation === 'run';
+    if (!trail.visible) return;
+    const progress = (time * 2.7 + trail.userData.phase) % 1;
+    const side = index % 2 ? 1 : -1;
+    trail.position.set(side * (.78 + progress * .8), .72 + (index % 4) * .36, .1);
+    trail.material.opacity = (1 - progress) * .72;
+  });
+
+  phoneWaves.forEach(wave => {
+    wave.visible = showcaseAnimation === 'phone';
+    if (!wave.visible) return;
+    const progress = (time * .9 + wave.userData.phase) % 1;
+    wave.scale.setScalar(.45 + progress * 1.8);
+    wave.material.opacity = (1 - progress) * .78;
+  });
+  stageGlow.emissiveIntensity = 1.25 + Math.abs(Math.sin(time * (showcaseAnimation === 'run' ? 7 : 2.4))) * .9;
   showcaseCamera.lookAt(0, 1.35, 0);
 }
 
