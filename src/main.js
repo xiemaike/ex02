@@ -46,11 +46,11 @@ const CHARACTER_COLORS = {
 };
 const CHARACTER_PRESETS = {
   mint: { label: '薄荷通讯者', note: '高精度模型', defaultName: '青铃', skin: '#f2c7ae', shirt: '#f4f3ed', hair: '#92d6bd', trousers: '#293244', accent: '#9b3035', eyes: '#c34f80', hairStyle: 'twin', accessory: 'none', model: 'mint' },
-  furina: { label: '水之歌者', note: '芙宁娜风格', defaultName: '芙露娜', skin: '#f2c7a5', shirt: '#203f74', hair: '#e8edf4', trousers: '#16294f', accent: '#71d8e5', eyes: '#43bfe0', hairStyle: 'long', accessory: 'hat', model: 'generic' },
-  sakura: { label: '樱花魔法使', note: '原创动漫', defaultName: '小樱', skin: '#f0c0a2', shirt: '#c86b9d', hair: '#efa5c4', trousers: '#60466f', accent: '#ffe5f1', eyes: '#8d4bb0', hairStyle: 'twin', accessory: 'ribbon' },
-  knight: { label: '金焰骑士', note: '原创动漫', defaultName: '艾琳', skin: '#e9b88f', shirt: '#e7e4da', hair: '#e3b95e', trousers: '#683d3b', accent: '#d84e3b', eyes: '#5c91c7', hairStyle: 'long', accessory: 'crown' },
-  miko: { label: '月夜巫女', note: '原创动漫', defaultName: '月璃', skin: '#f1c8ae', shirt: '#f3eee5', hair: '#202737', trousers: '#9d3341', accent: '#d94a5b', eyes: '#bc425c', hairStyle: 'long', accessory: 'ribbon' },
-  forest: { label: '森灵弓手', note: '原创动漫', defaultName: '青叶', skin: '#d7a47b', shirt: '#4f8b61', hair: '#75a86a', trousers: '#3f5748', accent: '#d5c46b', eyes: '#d1a83a', hairStyle: 'short', accessory: 'ears' }
+  furina: { label: '水之歌者', note: '方块礼帽', defaultName: '芙露娜', skin: '#f2c7a5', shirt: '#203f74', hair: '#e8edf4', trousers: '#16294f', accent: '#71d8e5', eyes: '#43bfe0', hairStyle: 'long', accessory: 'hat', model: 'voxel' },
+  sakura: { label: '樱花魔法使', note: '方块双马尾', defaultName: '小樱', skin: '#f0c0a2', shirt: '#c86b9d', hair: '#efa5c4', trousers: '#60466f', accent: '#ffe5f1', eyes: '#8d4bb0', hairStyle: 'twin', accessory: 'ribbon', model: 'voxel' },
+  knight: { label: '金焰骑士', note: '方块铠甲', defaultName: '艾琳', skin: '#e9b88f', shirt: '#e7e4da', hair: '#e3b95e', trousers: '#683d3b', accent: '#d84e3b', eyes: '#5c91c7', hairStyle: 'long', accessory: 'crown', model: 'voxel' },
+  miko: { label: '月夜巫女', note: '方块巫女服', defaultName: '月璃', skin: '#f1c8ae', shirt: '#f3eee5', hair: '#202737', trousers: '#9d3341', accent: '#d94a5b', eyes: '#bc425c', hairStyle: 'long', accessory: 'ribbon', model: 'voxel' },
+  forest: { label: '森灵弓手', note: '方块精灵耳', defaultName: '青叶', skin: '#d7a47b', shirt: '#4f8b61', hair: '#75a86a', trousers: '#3f5748', accent: '#d5c46b', eyes: '#d1a83a', hairStyle: 'short', accessory: 'ears', model: 'voxel' }
 };
 
 const scene = new THREE.Scene();
@@ -240,7 +240,7 @@ let characterFromStart = false;
 const character = {
   name: '探险家', skin: CHARACTER_COLORS.skin[1], shirt: CHARACTER_COLORS.shirt[0],
   hair: CHARACTER_COLORS.hair[0], trousers: '#34455d', accent: '#f5d06f', eyes: '#243344',
-  hairStyle: 'short', accessory: 'none', preset: 'custom', model: 'generic', created: false
+  hairStyle: 'short', accessory: 'none', preset: 'custom', model: 'voxel', created: false
 };
 
 const characterMaterials = {
@@ -252,12 +252,33 @@ const characterMaterials = {
   eye: new THREE.MeshLambertMaterial({ color: character.eyes })
 };
 const avatar = new THREE.Group();
+avatar.scale.setScalar(.92);
 scene.add(avatar);
 
-function avatarBox(size, position, material, parent = avatar) {
+function avatarBox(size, position, material, parent = avatar, rotation = null) {
   const mesh = new THREE.Mesh(new THREE.BoxGeometry(...size), material);
   mesh.position.set(...position); mesh.castShadow = true; mesh.receiveShadow = true;
+  if (rotation) mesh.rotation.set(...rotation);
   parent.add(mesh); return mesh;
+}
+
+const genericFaceCanvas = document.createElement('canvas');
+genericFaceCanvas.width = genericFaceCanvas.height = 32;
+const genericFaceTexture = new THREE.CanvasTexture(genericFaceCanvas);
+genericFaceTexture.magFilter = THREE.NearestFilter; genericFaceTexture.minFilter = THREE.NearestFilter;
+genericFaceTexture.colorSpace = THREE.SRGBColorSpace;
+const genericFaceMaterial = new THREE.MeshBasicMaterial({ map: genericFaceTexture });
+
+function drawGenericFace(skin, eyeColor) {
+  const ctx = genericFaceCanvas.getContext('2d'); ctx.imageSmoothingEnabled = false;
+  ctx.fillStyle = skin; ctx.fillRect(0, 0, 32, 32);
+  ctx.fillStyle = '#302833'; ctx.fillRect(4, 12, 10, 2); ctx.fillRect(18, 12, 10, 2);
+  ctx.fillStyle = '#fffafa'; ctx.fillRect(5, 14, 8, 7); ctx.fillRect(19, 14, 8, 7);
+  ctx.fillStyle = eyeColor; ctx.fillRect(7, 14, 5, 7); ctx.fillRect(20, 14, 5, 7);
+  ctx.fillStyle = '#272231'; ctx.fillRect(8, 18, 4, 3); ctx.fillRect(20, 18, 4, 3);
+  ctx.fillStyle = '#ffffff'; ctx.fillRect(8, 14, 2, 2); ctx.fillRect(21, 14, 2, 2);
+  ctx.fillStyle = '#a76569'; ctx.fillRect(14, 25, 5, 1);
+  genericFaceTexture.needsUpdate = true;
 }
 
 function createMintFaceTexture() {
@@ -353,38 +374,69 @@ mintBox([.075, .075, .025], [.54, 1.88, -.19], mintMaterials.phoneDark);
 mintBox([.3, .15, .22], [-.48, 1.43, 0], mintMaterials.sweater);
 
 const avatarParts = {
-  leftLeg: avatarBox([.26, .72, .28], [-.15, .36, 0], characterMaterials.trousers),
-  rightLeg: avatarBox([.26, .72, .28], [.15, .36, 0], characterMaterials.trousers),
-  body: avatarBox([.62, .65, .34], [0, 1.02, 0], characterMaterials.shirt),
-  leftArm: avatarBox([.18, .7, .22], [-.42, 1.01, 0], characterMaterials.shirt),
-  rightArm: avatarBox([.18, .7, .22], [.42, 1.01, 0], characterMaterials.shirt),
-  head: avatarBox([.5, .48, .48], [0, 1.58, 0], characterMaterials.skin),
-  hair: avatarBox([.54, .14, .52], [0, 1.85, .01], characterMaterials.hair)
+  leftLeg: avatarBox([.29, .75, .32], [-.17, .375, 0], characterMaterials.trousers),
+  rightLeg: avatarBox([.29, .75, .32], [.17, .375, 0], characterMaterials.trousers),
+  body: avatarBox([.68, .7, .38], [0, 1.1, 0], characterMaterials.shirt),
+  leftArm: avatarBox([.22, .72, .24], [-.46, 1.09, 0], characterMaterials.shirt),
+  rightArm: avatarBox([.22, .72, .24], [.46, 1.09, 0], characterMaterials.shirt),
+  head: avatarBox([.64, .61, .62], [0, 1.72, 0], characterMaterials.skin),
+  hair: avatarBox([.68, .15, .66], [0, 2.09, .01], characterMaterials.hair)
 };
-avatarBox([.075, .085, .025], [-.12, 1.61, -.247], characterMaterials.eye);
-avatarBox([.075, .085, .025], [.12, 1.61, -.247], characterMaterials.eye);
-const avatarAccent = avatarBox([.1, .64, .025], [0, 1.02, -.183], characterMaterials.accent);
-const hairSides = [
-  avatarBox([.13, .55, .18], [-.28, 1.45, .08], characterMaterials.hair),
-  avatarBox([.13, .55, .18], [.28, 1.45, .08], characterMaterials.hair)
+const genericFace = new THREE.Mesh(new THREE.PlaneGeometry(.61, .58), genericFaceMaterial);
+genericFace.position.set(0, 1.72, -.316); genericFace.rotation.y = Math.PI; avatar.add(genericFace);
+const avatarAccent = avatarBox([.12, .68, .03], [0, 1.1, -.205], characterMaterials.accent);
+const genericShoes = [
+  avatarBox([.32, .2, .42], [-.17, .1, -.05], characterMaterials.accent),
+  avatarBox([.32, .2, .42], [.17, .1, -.05], characterMaterials.accent)
 ];
+const genericHands = [
+  avatarBox([.225, .18, .245], [-.46, .69, 0], characterMaterials.skin),
+  avatarBox([.225, .18, .245], [.46, .69, 0], characterMaterials.skin)
+];
+const hairSides = [
+  avatarBox([.15, .6, .2], [-.33, 1.61, .08], characterMaterials.hair),
+  avatarBox([.15, .6, .2], [.33, 1.61, .08], characterMaterials.hair)
+];
+const genericHairBack = avatarBox([.64, .64, .15], [0, 1.67, .32], characterMaterials.hair);
+const genericBangs = [
+  avatarBox([.15, .33, .13], [-.25, 1.91, -.35], characterMaterials.hair, avatar, [0, 0, -.14]),
+  avatarBox([.15, .41, .13], [-.12, 1.87, -.35], characterMaterials.hair, avatar, [0, 0, -.07]),
+  avatarBox([.15, .44, .13], [0, 1.84, -.35], characterMaterials.hair),
+  avatarBox([.15, .39, .13], [.12, 1.88, -.35], characterMaterials.hair, avatar, [0, 0, .07]),
+  avatarBox([.15, .31, .13], [.25, 1.92, -.35], characterMaterials.hair, avatar, [0, 0, .14])
+];
+const genericTwinTails = [];
+for (const side of [-1, 1]) {
+  const tail = new THREE.Group(); avatar.add(tail); genericTwinTails.push(tail);
+  for (let i = 0; i < 5; i++) {
+    avatarBox([.2 - i * .012, .25, .2 - i * .012], [side * (.44 + i * .025), 1.52 - i * .21, .13], characterMaterials.hair, tail, [0, 0, side * (i % 2 ? .13 : -.1)]);
+  }
+}
+const coatTails = [
+  avatarBox([.25, .53, .12], [-.18, .69, .16], characterMaterials.accent, avatar, [.08, 0, -.1]),
+  avatarBox([.25, .53, .12], [.18, .69, .16], characterMaterials.accent, avatar, [.08, 0, .1])
+];
+const armorParts = new THREE.Group(); avatar.add(armorParts);
+avatarBox([.34, .2, .42], [-.45, 1.43, 0], characterMaterials.accent, armorParts);
+avatarBox([.34, .2, .42], [.45, 1.43, 0], characterMaterials.accent, armorParts);
+avatarBox([.72, .12, .42], [0, 1.43, 0], characterMaterials.accent, armorParts);
 const accessoryGroups = {};
 accessoryGroups.hat = new THREE.Group(); avatar.add(accessoryGroups.hat);
-avatarBox([.76, .07, .58], [0, 1.94, .02], characterMaterials.shirt, accessoryGroups.hat);
-avatarBox([.42, .22, .44], [0, 2.07, .02], characterMaterials.shirt, accessoryGroups.hat);
-avatarBox([.44, .055, .46], [0, 2.0, -.205], characterMaterials.accent, accessoryGroups.hat);
+avatarBox([.82, .08, .66], [0, 2.18, .02], characterMaterials.shirt, accessoryGroups.hat);
+avatarBox([.46, .24, .48], [0, 2.33, .02], characterMaterials.shirt, accessoryGroups.hat);
+avatarBox([.48, .06, .5], [0, 2.25, -.225], characterMaterials.accent, accessoryGroups.hat);
 accessoryGroups.ribbon = new THREE.Group(); avatar.add(accessoryGroups.ribbon);
-const ribbonLeft = avatarBox([.3, .18, .1], [-.27, 1.78, .18], characterMaterials.accent, accessoryGroups.ribbon);
-const ribbonRight = avatarBox([.3, .18, .1], [.27, 1.78, .18], characterMaterials.accent, accessoryGroups.ribbon);
+const ribbonLeft = avatarBox([.31, .18, .1], [-.38, 1.87, .2], characterMaterials.accent, accessoryGroups.ribbon);
+const ribbonRight = avatarBox([.31, .18, .1], [.38, 1.87, .2], characterMaterials.accent, accessoryGroups.ribbon);
 ribbonLeft.rotation.z = -.35; ribbonRight.rotation.z = .35;
 accessoryGroups.crown = new THREE.Group(); avatar.add(accessoryGroups.crown);
-avatarBox([.5, .08, .42], [0, 1.94, .02], characterMaterials.accent, accessoryGroups.crown);
-avatarBox([.09, .22, .09], [-.17, 2.06, .02], characterMaterials.accent, accessoryGroups.crown);
-avatarBox([.09, .28, .09], [0, 2.09, .02], characterMaterials.accent, accessoryGroups.crown);
-avatarBox([.09, .22, .09], [.17, 2.06, .02], characterMaterials.accent, accessoryGroups.crown);
+avatarBox([.56, .08, .46], [0, 2.18, .02], characterMaterials.accent, accessoryGroups.crown);
+avatarBox([.1, .23, .1], [-.19, 2.31, .02], characterMaterials.accent, accessoryGroups.crown);
+avatarBox([.1, .3, .1], [0, 2.34, .02], characterMaterials.accent, accessoryGroups.crown);
+avatarBox([.1, .23, .1], [.19, 2.31, .02], characterMaterials.accent, accessoryGroups.crown);
 accessoryGroups.ears = new THREE.Group(); avatar.add(accessoryGroups.ears);
-const earLeft = avatarBox([.13, .34, .13], [-.32, 1.76, 0], characterMaterials.hair, accessoryGroups.ears);
-const earRight = avatarBox([.13, .34, .13], [.32, 1.76, 0], characterMaterials.hair, accessoryGroups.ears);
+const earLeft = avatarBox([.14, .38, .14], [-.4, 1.84, 0], characterMaterials.hair, accessoryGroups.ears);
+const earRight = avatarBox([.14, .38, .14], [.4, 1.84, 0], characterMaterials.hair, accessoryGroups.ears);
 earLeft.rotation.z = -.45; earRight.rotation.z = .45;
 
 function applyCharacterAppearance() {
@@ -394,6 +446,7 @@ function applyCharacterAppearance() {
   characterMaterials.trousers.color.set(character.trousers);
   characterMaterials.accent.color.set(character.accent);
   characterMaterials.eye.color.set(character.eyes);
+  drawGenericFace(character.skin, character.eyes);
   characterPreview.style.setProperty('--skin', character.skin);
   characterPreview.style.setProperty('--shirt', character.shirt);
   characterPreview.style.setProperty('--hair', character.hair);
@@ -405,8 +458,12 @@ function applyCharacterAppearance() {
   const longHair = character.hairStyle === 'long' || character.hairStyle === 'twin';
   hairSides.forEach((part, index) => {
     part.visible = longHair;
-    part.position.x = character.hairStyle === 'twin' ? (index ? .38 : -.38) : (index ? .28 : -.28);
+    part.position.x = character.hairStyle === 'twin' ? (index ? .38 : -.38) : (index ? .33 : -.33);
   });
+  genericHairBack.visible = longHair;
+  genericTwinTails.forEach(tail => { tail.visible = character.hairStyle === 'twin'; });
+  coatTails.forEach(part => { part.visible = ['furina', 'knight', 'miko'].includes(character.preset); });
+  armorParts.visible = character.preset === 'knight';
   Object.entries(accessoryGroups).forEach(([name, group]) => { group.visible = character.accessory === name; });
   avatarAccent.visible = true;
   characterNameEl.textContent = character.name || '探险家';
@@ -421,7 +478,7 @@ function applyCharacterAppearance() {
 function applyPreset(key) {
   const preset = CHARACTER_PRESETS[key];
   if (!preset) return;
-  Object.assign(character, preset, { preset: key, name: preset.defaultName, model: preset.model || 'generic' });
+  Object.assign(character, preset, { preset: key, name: preset.defaultName, model: preset.model || 'voxel' });
   if (preset.model === 'mint') { thirdPerson = true; frontView = true; viewLabel.textContent = '正面展示'; }
   nameInput.value = character.name;
   applyCharacterAppearance();
@@ -809,6 +866,7 @@ function loadWorld() {
     frontView = Boolean(data.frontView);
     player.health = data.health ?? 100; player.crystals = data.crystals || 0;
     if (data.character) Object.assign(character, data.character);
+    if (!character.model || character.model === 'generic') character.model = 'voxel';
   } catch { localStorage.removeItem(SAVE_KEY); }
 }
 
